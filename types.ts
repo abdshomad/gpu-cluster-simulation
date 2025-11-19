@@ -1,4 +1,5 @@
 
+
 export enum NodeType {
   HEAD = 'HEAD',
   WORKER = 'WORKER'
@@ -37,6 +38,8 @@ export interface MetricPoint {
   avgLatency: number; // ms
   clusterUtilization: number; // %
   queueDepth: number;
+  activeUsers: number;
+  estimatedCostPerHour: number; // $
 }
 
 export interface ModelConfig {
@@ -47,6 +50,37 @@ export interface ModelConfig {
   tpSize: number; // Tensor Parallel size (1 = single gpu, >1 = distributed)
   tokensPerSec: number; // Base speed factor
   description: string;
+  costPer1kTokens: number; // Est cost
+}
+
+export enum UserState {
+  IDLE = 'IDLE', // Thinking
+  SENDING = 'SENDING', // Generating prompt
+  WAITING = 'WAITING', // Waiting for LLM response
+  READING = 'READING' // Reading the response
+}
+
+export interface VirtualUser {
+  id: string;
+  name: string;
+  state: UserState;
+  currentRequestId?: string;
+  timer: number; // Ticks remaining in current state
+  color: string;
+  avatar: string; // Emoji
+  totalCost: number; // Accumulated cost in $
+}
+
+export interface LogEntry {
+  id: string;
+  timestamp: number;
+  userId: string;
+  userName: string;
+  userAvatar: string;
+  userColor: string;
+  type: 'PROMPT' | 'RESPONSE';
+  text: string;
+  latency?: number;
 }
 
 export type SimulationState = {
@@ -55,6 +89,8 @@ export type SimulationState = {
   metricsHistory: MetricPoint[];
   systemTime: number;
   activeModelId: string;
+  virtualUsers: VirtualUser[];
+  activityLog: LogEntry[];
 };
 
 export interface TutorialStep {
