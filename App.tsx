@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   Play, Square, Zap, Activity, Server, 
@@ -536,7 +537,7 @@ const App: React.FC = () => {
             </div>
 
             {/* Tabbed Panel: Node Inspector / User Billing */}
-            <div className="bg-slate-900 border border-slate-800 rounded-xl shadow-xl h-[300px] flex flex-col overflow-hidden">
+            <div className="bg-slate-900 border border-slate-800 rounded-xl shadow-xl flex flex-col overflow-hidden">
                 <div className="flex border-b border-slate-800">
                     <button 
                         onClick={() => setRightPanelTab('nodes')}
@@ -552,7 +553,7 @@ const App: React.FC = () => {
                     </button>
                 </div>
 
-                <div className="flex-grow overflow-y-auto p-4 bg-slate-950/30">
+                <div className="p-4 bg-slate-950/30">
                     {rightPanelTab === 'nodes' ? (
                         <div className="space-y-2">
                             {simulationState.nodes.map(node => (
