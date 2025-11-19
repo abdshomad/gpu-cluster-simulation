@@ -1,5 +1,4 @@
 
-
 export enum NodeType {
   HEAD = 'HEAD',
   WORKER = 'WORKER'
@@ -40,6 +39,8 @@ export interface MetricPoint {
   queueDepth: number;
   activeUsers: number;
   estimatedCostPerHour: number; // $
+  avgGpuTemp: number; // Celsius
+  nodeActiveTokens: Record<string, number>; // Active tokens per node
 }
 
 export interface ModelConfig {

@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   Play, Square, Zap, Activity, Server, 
@@ -275,6 +274,17 @@ const App: React.FC = () => {
     const costPerSec = (totalThroughput / 1000) * currentModel.costPer1kTokens;
     const costPerHour = costPerSec * 3600;
 
+    // Calculate Avg GPU Temp and Active Tokens distribution
+    const workerNodes = newNodes.filter(n => n.type === NodeType.WORKER);
+    const avgGpuTemp = workerNodes.length > 0 
+        ? workerNodes.reduce((acc, n) => acc + n.temp, 0) / workerNodes.length 
+        : 30;
+    
+    const nodeActiveTokens = workerNodes.reduce((acc, n) => {
+        acc[n.id] = n.activeTokens;
+        return acc;
+    }, {} as Record<string, number>);
+
     const newMetric: MetricPoint = {
         timestamp: newTime,
         totalThroughput,
@@ -282,7 +292,9 @@ const App: React.FC = () => {
         clusterUtilization: newNodes.reduce((acc, n) => acc + n.gpuUtil, 0) / (newNodes.length || 1),
         queueDepth: activeReqs,
         activeUsers: effectiveUserCount,
-        estimatedCostPerHour: costPerHour
+        estimatedCostPerHour: costPerHour,
+        avgGpuTemp,
+        nodeActiveTokens
     };
 
     const newHistory = [...currentState.metricsHistory, newMetric].slice(-100);

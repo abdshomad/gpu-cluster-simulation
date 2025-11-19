@@ -1,14 +1,33 @@
 
 import React from 'react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area, ReferenceLine } from 'recharts';
 import { MetricPoint } from '../types';
 
 interface Props {
   data: MetricPoint[];
 }
 
+const WORKER_COLORS = [
+  '#f87171', // red
+  '#fb923c', // orange
+  '#fbbf24', // amber
+  '#a3e635', // lime
+  '#4ade80', // green
+  '#34d399', // emerald
+  '#22d3ee', // cyan
+  '#60a5fa', // blue
+  '#818cf8', // indigo
+  '#c084fc', // fuchsia
+];
+
 const MetricsDashboard: React.FC<Props> = ({ data }) => {
   const recentData = data.slice(-50);
+
+  // Flatten data for stacked chart
+  const chartData = recentData.map(d => ({
+      ...d,
+      ...d.nodeActiveTokens
+  }));
 
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
@@ -73,7 +92,7 @@ const MetricsDashboard: React.FC<Props> = ({ data }) => {
         </div>
       </div>
 
-      {/* GPU Utilization Panel (New) */}
+      {/* GPU Utilization Panel */}
       <div className="bg-grafana-panel border border-slate-700 rounded-lg p-4 h-48 flex flex-col">
         <div className="flex justify-between items-center mb-2">
             <h3 className="text-xs font-semibold text-violet-400 flex items-center gap-2 uppercase tracking-wider">
@@ -117,6 +136,56 @@ const MetricsDashboard: React.FC<Props> = ({ data }) => {
             </ResponsiveContainer>
         </div>
       </div>
+
+      {/* Avg GPU Temp Panel (Resized to half) */}
+      <div className="bg-grafana-panel border border-slate-700 rounded-lg p-4 h-48 flex flex-col md:col-span-2 lg:col-span-2">
+        <div className="flex justify-between items-center mb-2">
+            <h3 className="text-xs font-semibold text-orange-400 flex items-center gap-2 uppercase tracking-wider">
+               Avg GPU Temp (°C)
+            </h3>
+        </div>
+        <div className="flex-grow w-full">
+            <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={recentData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
+                <YAxis hide domain={[30, 90]} />
+                <Tooltip content={<CustomTooltip />} cursor={{stroke: '#475569'}} />
+                <ReferenceLine y={80} stroke="#ef4444" strokeDasharray="3 3" label={{ position: 'insideTopRight', value: 'Threshold (80°C)', fill: '#ef4444', fontSize: 10 }} />
+                <Line type="monotone" dataKey="avgGpuTemp" name="Temp" stroke="#fb923c" strokeWidth={2} dot={false} isAnimationActive={false} />
+            </LineChart>
+            </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* Active Tokens per Node (New Panel) */}
+      <div className="bg-grafana-panel border border-slate-700 rounded-lg p-4 h-48 flex flex-col md:col-span-2 lg:col-span-2">
+        <div className="flex justify-between items-center mb-2">
+            <h3 className="text-xs font-semibold text-emerald-400 flex items-center gap-2 uppercase tracking-wider">
+               Active Tokens / Node
+            </h3>
+        </div>
+        <div className="flex-grow w-full">
+            <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
+                <YAxis hide />
+                <Tooltip content={<CustomTooltip />} cursor={{stroke: '#475569'}} />
+                {Array.from({ length: 10 }, (_, i) => (
+                  <Area 
+                    key={`server-${i+1}`}
+                    type="monotone" 
+                    dataKey={`server-${i+1}`} 
+                    stackId="1" 
+                    stroke="none" 
+                    fill={WORKER_COLORS[i]} 
+                    isAnimationActive={false}
+                  />
+                ))}
+            </AreaChart>
+            </ResponsiveContainer>
+        </div>
+      </div>
+
     </div>
   );
 };
