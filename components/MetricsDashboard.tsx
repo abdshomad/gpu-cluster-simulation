@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
 import { MetricPoint } from '../types';
@@ -27,7 +28,7 @@ const MetricsDashboard: React.FC<Props> = ({ data }) => {
   };
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
       {/* Throughput Panel */}
       <div className="bg-grafana-panel border border-slate-700 rounded-lg p-4 h-48 flex flex-col">
         <div className="flex justify-between items-center mb-2">
@@ -72,22 +73,46 @@ const MetricsDashboard: React.FC<Props> = ({ data }) => {
         </div>
       </div>
 
-      {/* VRAM / KV Cache Panel */}
+      {/* GPU Utilization Panel (New) */}
+      <div className="bg-grafana-panel border border-slate-700 rounded-lg p-4 h-48 flex flex-col">
+        <div className="flex justify-between items-center mb-2">
+            <h3 className="text-xs font-semibold text-violet-400 flex items-center gap-2 uppercase tracking-wider">
+               GPU Utilization (%)
+            </h3>
+        </div>
+        <div className="flex-grow w-full">
+            <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={recentData}>
+                <defs>
+                    <linearGradient id="colorUtil" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0}/>
+                    </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
+                <YAxis hide domain={[0, 100]} />
+                <Tooltip content={<CustomTooltip />} cursor={{stroke: '#475569'}} />
+                <Line type="monotone" dataKey="clusterUtilization" name="GPU Util" stroke="#8b5cf6" strokeWidth={2} dot={false} isAnimationActive={false} />
+                <Area type="monotone" dataKey="clusterUtilization" stroke="none" fill="url(#colorUtil)" isAnimationActive={false} />
+            </LineChart>
+            </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* Queue Depth Panel */}
       <div className="bg-grafana-panel border border-slate-700 rounded-lg p-4 h-48 flex flex-col">
         <div className="flex justify-between items-center mb-2">
             <h3 className="text-xs font-semibold text-rose-400 flex items-center gap-2 uppercase tracking-wider">
-               KV Cache Usage (%)
+               Queue Depth
             </h3>
         </div>
         <div className="flex-grow w-full">
             <ResponsiveContainer width="100%" height="100%">
             <LineChart data={recentData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
-                <YAxis hide domain={[0, 100]} />
+                <YAxis hide domain={[0, 'auto']} />
                 <Tooltip content={<CustomTooltip />} cursor={{stroke: '#475569'}} />
-                <Line type="stepAfter" dataKey="clusterUtilization" name="GPU Load" stroke="#10b981" strokeWidth={1} dot={false} isAnimationActive={false} />
-                {/* Using clusterUtilization as proxy for VRAM in this sim for visual simplicity, or we could add a separate field */}
-                <Line type="monotone" dataKey="queueDepth" name="Pending Reqs" stroke="#f43f5e" strokeWidth={2} dot={false} isAnimationActive={false} />
+                <Line type="stepAfter" dataKey="queueDepth" name="Pending Reqs" stroke="#f43f5e" strokeWidth={2} dot={false} isAnimationActive={false} />
             </LineChart>
             </ResponsiveContainer>
         </div>
