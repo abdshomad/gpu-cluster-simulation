@@ -310,6 +310,7 @@ const App: React.FC = () => {
         nodeTemp
     };
 
+    // Buffer size 300 for better trend visualization
     const newHistory = [...currentState.metricsHistory, newMetric].slice(-300);
 
     setSimulationState(prev => ({
@@ -596,15 +597,29 @@ const App: React.FC = () => {
                                     </div>
                                     
                                     {node.type === NodeType.WORKER && (
-                                        <div className="grid grid-cols-2 gap-2 mt-1">
-                                            <div className="flex flex-col gap-0.5">
-                                                <div className="h-1 w-full bg-slate-800 rounded-full overflow-hidden">
-                                                    <div className="h-full bg-sky-500" style={{ width: `${node.gpuUtil}%` }}></div>
+                                        <div className="mt-2 grid grid-cols-2 gap-3">
+                                            <div>
+                                                <div className="flex justify-between items-center text-[10px] mb-1">
+                                                    <span className="font-bold text-slate-500">GPU</span>
+                                                    <span className={`font-mono ${node.gpuUtil > 90 ? 'text-red-400' : 'text-sky-400'}`}>{node.gpuUtil.toFixed(0)}%</span>
+                                                </div>
+                                                <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
+                                                    <div 
+                                                        className={`h-full transition-all duration-300 ${node.gpuUtil > 90 ? 'bg-red-500' : 'bg-sky-500'}`} 
+                                                        style={{ width: `${node.gpuUtil}%` }}
+                                                    ></div>
                                                 </div>
                                             </div>
-                                            <div className="flex flex-col gap-0.5">
-                                                <div className="h-1 w-full bg-slate-800 rounded-full overflow-hidden">
-                                                    <div className="h-full bg-rose-500" style={{ width: `${node.vramUtil}%` }}></div>
+                                            <div>
+                                                <div className="flex justify-between items-center text-[10px] mb-1">
+                                                    <span className="font-bold text-slate-500">VRAM</span>
+                                                    <span className={`font-mono ${node.vramUtil > 90 ? 'text-red-400' : 'text-rose-400'}`}>{node.vramUtil.toFixed(0)}%</span>
+                                                </div>
+                                                <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
+                                                    <div 
+                                                        className={`h-full transition-all duration-300 ${node.vramUtil > 90 ? 'bg-red-500' : 'bg-rose-500'}`} 
+                                                        style={{ width: `${node.vramUtil}%` }}
+                                                    ></div>
                                                 </div>
                                             </div>
                                         </div>
