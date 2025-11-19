@@ -1,0 +1,5 @@
+{
+  "name": "Ray & vLLM Cluster Sim",
+  "description": "A specialized interactive tutorial demonstrating GPU cluster parallelism, Ray orchestration, and vLLM inference metrics with real-time visualizations.",
+  "requestFramePermissions": []
+}
