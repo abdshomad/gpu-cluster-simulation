@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   Play, Square, Zap, Activity, Server, 
@@ -505,7 +504,7 @@ const App: React.FC = () => {
                          <span className="text-xs text-green-500 font-mono">{simulationState.virtualUsers.length} Active Users</span>
                      </div>
                  </div>
-                 <div className="flex-grow overflow-y-auto p-4 space-y-3 custom-scrollbar bg-slate-950/30">
+                 <div className="flex-grow overflow-y-auto p-4 space-y-3 bg-slate-950/30">
                      {simulationState.activityLog.length === 0 && (
                          <div className="text-center text-slate-600 text-sm py-10">
                              Waiting for traffic...
@@ -553,7 +552,7 @@ const App: React.FC = () => {
                     </button>
                 </div>
 
-                <div className="flex-grow overflow-y-auto custom-scrollbar p-4 bg-slate-950/30">
+                <div className="flex-grow overflow-y-auto p-4 bg-slate-950/30">
                     {rightPanelTab === 'nodes' ? (
                         <div className="space-y-2">
                             {simulationState.nodes.map(node => (
