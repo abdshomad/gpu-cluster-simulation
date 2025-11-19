@@ -277,14 +277,23 @@ const App: React.FC = () => {
 
     // Calculate Avg GPU Temp and Active Tokens distribution
     const workerNodes = newNodes.filter(n => n.type === NodeType.WORKER);
+    
     const avgGpuTemp = workerNodes.length > 0 
         ? workerNodes.reduce((acc, n) => acc + n.temp, 0) / workerNodes.length 
         : 30;
     
-    const nodeActiveTokens = workerNodes.reduce((acc, n) => {
-        acc[n.id] = n.activeTokens;
-        return acc;
-    }, {} as Record<string, number>);
+    // Collect per-node metrics for history
+    const nodeActiveTokens: Record<string, number> = {};
+    const nodeGpuUtil: Record<string, number> = {};
+    const nodeVramUtil: Record<string, number> = {};
+    const nodeTemp: Record<string, number> = {};
+
+    workerNodes.forEach(n => {
+        nodeActiveTokens[n.id] = n.activeTokens;
+        nodeGpuUtil[n.id] = n.gpuUtil;
+        nodeVramUtil[n.id] = n.vramUtil;
+        nodeTemp[n.id] = n.temp;
+    });
 
     const newMetric: MetricPoint = {
         timestamp: newTime,
@@ -295,10 +304,13 @@ const App: React.FC = () => {
         activeUsers: effectiveUserCount,
         estimatedCostPerHour: costPerHour,
         avgGpuTemp,
-        nodeActiveTokens
+        nodeActiveTokens,
+        nodeGpuUtil,
+        nodeVramUtil,
+        nodeTemp
     };
 
-    const newHistory = [...currentState.metricsHistory, newMetric].slice(-100);
+    const newHistory = [...currentState.metricsHistory, newMetric].slice(-300);
 
     setSimulationState(prev => ({
         ...prev,
@@ -518,7 +530,7 @@ const App: React.FC = () => {
                          <span className="text-xs text-green-500 font-mono">{simulationState.virtualUsers.length} Active Users</span>
                      </div>
                  </div>
-                 <div className="flex-grow overflow-y-auto p-4 space-y-3 bg-slate-950/30">
+                 <div className="flex-grow p-4 space-y-3 bg-slate-950/30">
                      {simulationState.activityLog.length === 0 && (
                          <div className="text-center text-slate-600 text-sm py-10">
                              Waiting for traffic...

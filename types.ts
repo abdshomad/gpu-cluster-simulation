@@ -41,6 +41,9 @@ export interface MetricPoint {
   estimatedCostPerHour: number; // $
   avgGpuTemp: number; // Celsius
   nodeActiveTokens: Record<string, number>; // Active tokens per node
+  nodeGpuUtil: Record<string, number>; // GPU Util per node
+  nodeVramUtil: Record<string, number>; // VRAM Util per node
+  nodeTemp: Record<string, number>; // Temp per node
 }
 
 export interface ModelConfig {
