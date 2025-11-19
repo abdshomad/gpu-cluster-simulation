@@ -11,6 +11,7 @@ import {
 import { INITIAL_NODES, TUTORIAL_STEPS, MODELS, USER_NAMES, USER_AVATARS, MOCK_PROMPTS } from './constants';
 import ClusterVisualization from './components/ClusterVisualization';
 import MetricsDashboard from './components/MetricsDashboard';
+import NodeDetailsModal from './components/NodeDetailsModal';
 import { askTutor } from './services/geminiService';
 
 const App: React.FC = () => {
@@ -352,6 +353,9 @@ const App: React.FC = () => {
       }));
   };
 
+  // Find selected node for modal
+  const selectedNode = simulationState.nodes.find(n => n.id === selectedNodeId);
+
   // --- Render ---
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-sky-500/30 pb-20">
@@ -447,6 +451,15 @@ const App: React.FC = () => {
                   </div>
               </div>
           </div>
+      )}
+
+      {/* Node Details Modal */}
+      {selectedNode && (
+        <NodeDetailsModal 
+            node={selectedNode} 
+            metricsHistory={simulationState.metricsHistory}
+            onClose={() => setSelectedNodeId(null)}
+        />
       )}
 
       {/* Main Content */}
