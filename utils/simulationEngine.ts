@@ -29,6 +29,10 @@ export const calculateNextTick = (
     let newRequests = [...state.requests];
     let newLog = [...state.activityLog];
     
+    // Identify available workers
+    const availableWorkers = state.nodes.filter(n => n.type === NodeType.WORKER && n.status !== NodeStatus.OFFLINE);
+    const anyWorkerOffline = state.nodes.some(n => n.type === NodeType.WORKER && n.status === NodeStatus.OFFLINE);
+
     newUsers = newUsers.map(user => {
         let u = { ...user };
         if (u.state === UserState.IDLE && --u.timer <= 0) { u.state = UserState.SENDING; u.timer = 5; }
@@ -42,23 +46,37 @@ export const calculateNextTick = (
                 newLog.unshift({ id: `log-${newTime}-${u.id}`, timestamp: newTime, userId: u.id, userName: u.name, userAvatar: u.avatar, userColor: u.color, type: 'PROMPT', text: prompt.text });
 
                 let targetNodeId;
-                const workers = state.nodes.filter(n => n.type === NodeType.WORKER);
-                if (selectedModel.tpSize === 1) {
-                    if (lbStrategy === LoadBalancingStrategy.ROUND_ROBIN) targetNodeId = workers[(rrIndex = (rrIndex + 1) % workers.length)].id;
-                    else if (lbStrategy === LoadBalancingStrategy.LEAST_CONNECTIONS) {
-                        const counts = workers.map(w => ({ id: w.id, c: newRequests.filter(r => r.targetNodeId === w.id).length }));
-                        targetNodeId = counts.sort((a, b) => a.c - b.c)[0].id;
-                    } else targetNodeId = workers[Math.floor(Math.random() * workers.length)].id;
+                // Only assign if we have available workers
+                if (availableWorkers.length > 0) {
+                    if (selectedModel.tpSize === 1) {
+                        if (lbStrategy === LoadBalancingStrategy.ROUND_ROBIN) {
+                            // Use modulo on available workers array
+                            targetNodeId = availableWorkers[(rrIndex = (rrIndex + 1) % availableWorkers.length)].id;
+                        } else if (lbStrategy === LoadBalancingStrategy.LEAST_CONNECTIONS) {
+                            const counts = availableWorkers.map(w => ({ id: w.id, c: newRequests.filter(r => r.targetNodeId === w.id).length }));
+                            targetNodeId = counts.sort((a, b) => a.c - b.c)[0].id;
+                        } else {
+                            targetNodeId = availableWorkers[Math.floor(Math.random() * availableWorkers.length)].id;
+                        }
+                    }
+                    // For distributed models (tpSize > 1), we don't need a specific targetNodeId as it hits all.
+                    // However, we will check availability during processing.
+                    
+                    newRequests.push({ id: reqId, modelId: selectedModelId, progress: 0, totalTokens: prompt.tokens, parallelShards: selectedModel.tpSize, targetNodeId, color: u.color });
+                    u.state = UserState.WAITING; u.currentRequestId = reqId;
+                } else {
+                    // Cluster Down
+                     newLog.unshift({ id: `log-err-${newTime}-${u.id}`, timestamp: newTime, userId: u.id, userName: "SYSTEM", userAvatar: "⚠️", userColor: "#ef4444", type: 'RESPONSE', text: "Request Failed: No healthy nodes available." });
+                     u.state = UserState.IDLE; u.timer = 30; 
                 }
-                newRequests.push({ id: reqId, modelId: selectedModelId, progress: 0, totalTokens: prompt.tokens, parallelShards: selectedModel.tpSize, targetNodeId, color: u.color });
-                u.state = UserState.WAITING; u.currentRequestId = reqId;
             } else { u.state = UserState.IDLE; u.timer = 20; }
         } else if (u.state === UserState.READING && --u.timer <= 0) { u.state = UserState.IDLE; u.timer = Math.floor(Math.random() * 50) + 20; }
         return u;
     });
 
     // Bandwidth calculation logic
-    const workerNodes = state.nodes.filter(n => n.type === NodeType.WORKER);
+    // Only calculate demands for online nodes
+    const workerNodes = state.nodes.filter(n => n.type === NodeType.WORKER && n.status !== NodeStatus.OFFLINE);
     let nodeBandwidthDemands: Record<string, number> = {};
     let nodeNvLinkDemands: Record<string, number> = {};
     let maxNetworkDemand = 0;
@@ -86,13 +104,23 @@ export const calculateNextTick = (
     newRequests = newRequests.map(r => {
         const m = MODELS[r.modelId];
         
+        // STALL LOGIC
+        let isStalled = false;
+        if (m.tpSize > 1) {
+            // Distributed request stalls if ANY worker is offline
+            if (anyWorkerOffline) isStalled = true;
+        } else {
+            // Single request stalls if TARGET worker is offline
+            const target = state.nodes.find(n => n.id === r.targetNodeId);
+            if (target && target.status === NodeStatus.OFFLINE) isStalled = true;
+        }
+
+        if (isStalled) return r; // No progress
+
         // Latency Penalty: Distributed models suffer from high network latency due to synchronization overhead
         let latencyPenalty = 1.0;
         if (m.tpSize > 1) {
-             // Sensitivity factor 0.03:
-             // 400G IB (1ms) -> 1 / 1.03 = ~0.97 (Fast)
-             // 100G Eth (10ms) -> 1 / 1.30 = ~0.77 (Medium)
-             // 10G Eth (50ms) -> 1 / 2.50 = ~0.40 (Slow)
+             // Sensitivity factor 0.03
              latencyPenalty = 1.0 / (1 + currentNetworkCap.latency * 0.03);
         }
 
@@ -140,6 +168,12 @@ export const calculateNextTick = (
 
     const newNodes = state.nodes.map(node => {
         if (node.type === NodeType.HEAD) return { ...node, gpuUtil: Math.min(80, newRequests.length), status: newRequests.length > 0 ? NodeStatus.COMPUTING : NodeStatus.IDLE };
+        
+        // HANDLE OFFLINE NODE
+        if (node.status === NodeStatus.OFFLINE) {
+             return { ...node, gpuUtil: 0, vramUtil: 0, netUtil: 0, activeTokens: 0, temp: 20 };
+        }
+
         const relevantRequests = newRequests.filter(r => r.parallelShards > 1 || r.targetNodeId === node.id);
         const load = relevantRequests.length;
         const util = node.gpuUtil + (Math.min(100, load * 15) - node.gpuUtil) * 0.1;
@@ -148,7 +182,14 @@ export const calculateNextTick = (
         state.activeModelIds.forEach(mid => {
              const m = MODELS[mid];
              const nodeReqs = relevantRequests.filter(r => r.modelId === mid);
-             currentTickModelVram[mid] = (currentTickModelVram[mid] || 0) + ((m.vramPerGpu + nodeReqs.length * (mid === 'llama-405b' ? 1.5 : 0.5)) / 100) * node.totalVram;
+             // Distributed models allocate VRAM on all nodes, Single only on target
+             if (m.tpSize > 1 || nodeReqs.length > 0) {
+                  // Simplified VRAM tracking for sim
+                  // For distributed, it's always allocated. For single, only if requests or base load.
+                  // But base load is handled by baseVramUsage.
+                  // Here we just sum up for the metrics chart.
+                  currentTickModelVram[mid] = (currentTickModelVram[mid] || 0) + ((m.vramPerGpu + nodeReqs.length * 0.5) / 100) * node.totalVram;
+             }
         });
         
         totalClusterBandwidth += Math.min(nodeBandwidthDemands[node.id] || 0, currentNetworkCap.bandwidth);

@@ -1,8 +1,7 @@
-
-
 import React, { useState } from 'react';
 import { Server, Activity } from 'lucide-react';
 import { MODELS } from './constants';
+import { NodeStatus } from './types';
 import ClusterVisualization from './components/ClusterVisualization';
 import MetricsDashboard from './components/MetricsDashboard';
 import NodeDetailsModal from './components/NodeDetailsModal';
@@ -38,6 +37,23 @@ const App: React.FC = () => {
       });
   };
 
+  const toggleNodeStatus = (nodeId: string) => {
+      setSimulationState(prev => {
+          const newNodes = prev.nodes.map(n => {
+              if (n.id === nodeId) {
+                  // Reset metrics when going offline
+                  if (n.status !== NodeStatus.OFFLINE) {
+                      return { ...n, status: NodeStatus.OFFLINE, gpuUtil: 0, vramUtil: 0, netUtil: 0, activeTokens: 0, temp: 20 };
+                  }
+                  // Returning to IDLE, other stats will recover in next tick
+                  return { ...n, status: NodeStatus.IDLE };
+              }
+              return n;
+          });
+          return { ...prev, nodes: newNodes };
+      });
+  };
+
   const getActiveModelNames = () => {
       const ids = simulationState.activeModelIds;
       if (ids.length === 0) return "None";
@@ -57,7 +73,14 @@ const App: React.FC = () => {
         targetUserCount={targetUserCount} setTargetUserCount={setTargetUserCount}
       />
       {tutorialStep !== null && <TutorialOverlay step={tutorialStep} setStep={(s) => setTutorialStep(s)} />}
-      {selectedNodeId && <NodeDetailsModal node={simulationState.nodes.find(n => n.id === selectedNodeId)!} metricsHistory={simulationState.metricsHistory} onClose={() => setSelectedNodeId(null)} />}
+      {selectedNodeId && (
+          <NodeDetailsModal 
+            node={simulationState.nodes.find(n => n.id === selectedNodeId)!} 
+            metricsHistory={simulationState.metricsHistory} 
+            onClose={() => setSelectedNodeId(null)} 
+            onToggleStatus={() => toggleNodeStatus(selectedNodeId)}
+          />
+      )}
       
       <main className="pt-24 px-6 max-w-[1600px] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6">
         <div className="lg:col-span-8 space-y-6">

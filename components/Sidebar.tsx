@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Terminal, Cpu, Server, CreditCard, Database } from 'lucide-react';
 import { SimulationState, NodeType, NodeStatus, UserState } from '../types';
@@ -25,7 +24,7 @@ const Sidebar: React.FC<Props> = ({ state, selectedNodeId, setSelectedNodeId }) 
                                  <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center shrink-0 border border-slate-700">{log.type === 'PROMPT' ? <span className="text-base">{log.userAvatar}</span> : <Cpu size={14} className="text-sky-500" />}</div>
                                  <div className="min-w-0">
                                      <div className="flex justify-between items-baseline mb-1"><span className="font-bold text-xs text-slate-300">{log.type === 'PROMPT' ? log.userName : 'vLLM Cluster'}</span>{log.latency && <span className="text-[10px] font-mono text-slate-500 ml-2">{log.latency.toFixed(0)}ms</span>}</div>
-                                     <p className={`text-xs leading-relaxed ${log.type === 'PROMPT' ? 'text-slate-400' : 'text-emerald-400/80'}`}>{log.type === 'PROMPT' ? `"${log.text}"` : "Generated completion tokens..."}</p>
+                                     <p className={`text-xs leading-relaxed ${log.type === 'PROMPT' ? 'text-slate-400' : log.userColor === '#ef4444' ? 'text-red-400' : 'text-emerald-400/80'}`}>{log.type === 'PROMPT' ? `"${log.text}"` : log.text}</p>
                                  </div>
                          </div>
                      ))}
@@ -43,48 +42,54 @@ const Sidebar: React.FC<Props> = ({ state, selectedNodeId, setSelectedNodeId }) 
                 <div className="p-4 bg-slate-950/30 max-h-[400px] overflow-y-auto">
                     {tab === 'nodes' ? (
                         <div className="space-y-2">
-                            {state.nodes.map(node => (
-                                <div key={node.id} onClick={() => setSelectedNodeId(node.id)} className={`p-3 rounded-xl border cursor-pointer transition-all ${selectedNodeId === node.id ? 'bg-slate-800 border-sky-500/50 ring-1 ring-sky-500/20' : 'bg-slate-900/50 border-slate-800 hover:border-slate-700'}`}>
-                                    <div className="flex justify-between items-center mb-2">
-                                        <div className="flex items-center gap-2"><div className={`w-1.5 h-1.5 rounded-full ${node.status === NodeStatus.COMPUTING ? 'bg-green-400' : 'bg-slate-600'}`}></div><span className="font-medium text-xs text-slate-300">{node.name}</span></div>
-                                        <span className="text-[10px] font-mono text-slate-500">{node.type === NodeType.HEAD ? 'HEAD' : 'WORKER'}</span>
-                                    </div>
-                                    {node.type === NodeType.WORKER && (
-                                        <div className="space-y-3 mt-1">
-                                            {/* GPU Bar */}
-                                            <div>
-                                                <div className="flex justify-between text-[10px] mb-1.5">
-                                                    <span className="font-bold text-slate-400 flex items-center gap-1.5"><Cpu size={12} /> GPU Load</span>
-                                                    <span className="font-mono font-bold text-sky-400">{node.gpuUtil.toFixed(0)}%</span>
-                                                </div>
-                                                <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden border border-slate-700/50">
-                                                    <div 
-                                                        className="h-full bg-sky-500 shadow-[0_0_8px_rgba(14,165,233,0.4)] transition-all duration-500 ease-out" 
-                                                        style={{ width: `${node.gpuUtil}%` }}
-                                                    ></div>
-                                                </div>
+                            {state.nodes.map(node => {
+                                const isOffline = node.status === NodeStatus.OFFLINE;
+                                return (
+                                    <div key={node.id} onClick={() => setSelectedNodeId(node.id)} className={`p-3 rounded-xl border cursor-pointer transition-all ${selectedNodeId === node.id ? 'bg-slate-800 border-sky-500/50 ring-1 ring-sky-500/20' : 'bg-slate-900/50 border-slate-800 hover:border-slate-700'} ${isOffline ? 'grayscale opacity-70' : ''}`}>
+                                        <div className="flex justify-between items-center mb-2">
+                                            <div className="flex items-center gap-2">
+                                                <div className={`w-1.5 h-1.5 rounded-full ${isOffline ? 'bg-red-500' : node.status === NodeStatus.COMPUTING ? 'bg-green-400' : 'bg-slate-600'}`}></div>
+                                                <span className={`font-medium text-xs ${isOffline ? 'text-slate-500 line-through' : 'text-slate-300'}`}>{node.name}</span>
                                             </div>
-
-                                            {/* VRAM Bar */}
-                                            <div>
-                                                <div className="flex justify-between text-[10px] mb-1.5">
-                                                    <span className="font-bold text-slate-400 flex items-center gap-1.5"><Database size={12} /> VRAM</span>
-                                                    <div className="flex items-baseline gap-1">
-                                                        <span className="text-slate-500 font-mono text-[9px]">{((node.vramUtil / 100) * node.totalVram).toFixed(0)}/{node.totalVram}GB</span>
-                                                        <span className="font-mono font-bold text-rose-400">{node.vramUtil.toFixed(0)}%</span>
+                                            <span className={`text-[10px] font-mono ${isOffline ? 'text-red-500' : 'text-slate-500'}`}>{isOffline ? 'OFFLINE' : node.type === NodeType.HEAD ? 'HEAD' : 'WORKER'}</span>
+                                        </div>
+                                        {node.type === NodeType.WORKER && (
+                                            <div className="space-y-3 mt-1">
+                                                {/* GPU Bar */}
+                                                <div>
+                                                    <div className="flex justify-between text-[10px] mb-1.5">
+                                                        <span className="font-bold text-slate-400 flex items-center gap-1.5"><Cpu size={12} /> GPU Load</span>
+                                                        <span className="font-mono font-bold text-sky-400">{node.gpuUtil.toFixed(0)}%</span>
+                                                    </div>
+                                                    <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden border border-slate-700/50">
+                                                        <div 
+                                                            className="h-full bg-sky-500 shadow-[0_0_8px_rgba(14,165,233,0.4)] transition-all duration-500 ease-out" 
+                                                            style={{ width: `${node.gpuUtil}%` }}
+                                                        ></div>
                                                     </div>
                                                 </div>
-                                                <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden border border-slate-700/50">
-                                                    <div 
-                                                        className="h-full bg-rose-500 shadow-[0_0_8px_rgba(225,29,72,0.4)] transition-all duration-500 ease-out" 
-                                                        style={{ width: `${node.vramUtil}%` }}
-                                                    ></div>
+
+                                                {/* VRAM Bar */}
+                                                <div>
+                                                    <div className="flex justify-between text-[10px] mb-1.5">
+                                                        <span className="font-bold text-slate-400 flex items-center gap-1.5"><Database size={12} /> VRAM</span>
+                                                        <div className="flex items-baseline gap-1">
+                                                            <span className="text-slate-500 font-mono text-[9px]">{((node.vramUtil / 100) * node.totalVram).toFixed(0)}/{node.totalVram}GB</span>
+                                                            <span className="font-mono font-bold text-rose-400">{node.vramUtil.toFixed(0)}%</span>
+                                                        </div>
+                                                    </div>
+                                                    <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden border border-slate-700/50">
+                                                        <div 
+                                                            className="h-full bg-rose-500 shadow-[0_0_8px_rgba(225,29,72,0.4)] transition-all duration-500 ease-out" 
+                                                            style={{ width: `${node.vramUtil}%` }}
+                                                        ></div>
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                    )}
-                                </div>
-                            ))}
+                                        )}
+                                    </div>
+                                );
+                            })}
                         </div>
                     ) : (
                         <table className="w-full text-left text-xs">

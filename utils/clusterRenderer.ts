@@ -1,4 +1,3 @@
-
 import { SimulationState, NodeType, NodeStatus, NetworkSpeed } from '../types';
 import { COLORS, MODELS, NETWORK_CAPACITY } from '../constants';
 import { drawGrid, drawCube, drawPacket, toIso } from './canvasDrawing';
@@ -20,8 +19,9 @@ export const renderCluster = (
     const wPos = workers.map((w, i) => ({ id: w.id, x: ((i % 5) - 2) * 90, y: (Math.floor(i / 5) - 0.5) * 135, z: 0, node: w }));
 
     // 1. Head -> Worker Connections (Request Distribution)
+    // Skip offline nodes
     wPos.forEach(wp => {
-        if (wp.node.status === NodeStatus.COMPUTING) {
+        if (wp.node.status !== NodeStatus.OFFLINE) {
            const h = toIso(head.x, head.y, head.z), w = toIso(wp.x, wp.y, wp.z + 20);
            ctx.strokeStyle = COLORS.ray; ctx.lineWidth = 1; ctx.globalAlpha = 0.2; 
            ctx.beginPath(); ctx.moveTo(h.x, h.y); ctx.lineTo(w.x, w.y); ctx.stroke(); ctx.globalAlpha = 1;
@@ -48,31 +48,30 @@ export const renderCluster = (
       // Visual Cue: Slower networks have wider gaps in the dash pattern
       const dashPattern = netSpeed === NetworkSpeed.ETH_10G ? [12, 8] : [8, 4];
       ctx.setLineDash(dashPattern); 
-      
-      // Visual Cue: Line flow speed depends on network latency
       ctx.lineDashOffset = -time * 50 * animSpeed; 
       
       wPos.forEach((wp, i) => {
-          if (wp.node.status !== NodeStatus.COMPUTING) return;
-          const next = wPos[(i + 1) % wPos.length];
-          if (next.node.status === NodeStatus.COMPUTING) {
+          if (wp.node.status === NodeStatus.OFFLINE) return; // Skip offline
+
+          const nextIndex = (i + 1) % wPos.length;
+          const next = wPos[nextIndex];
+          
+          if (next.node.status === NodeStatus.OFFLINE) return; // Skip link to offline
+
+          if (wp.node.status === NodeStatus.COMPUTING && next.node.status === NodeStatus.COMPUTING) {
               const util = (wp.node.netUtil + next.node.netUtil) / 200;
               const isBtl = util > 0.95;
               
-              // Enhanced TP Visualization: Purple/Glow for coordinated compute
               ctx.strokeStyle = isBtl ? '#ef4444' : '#c084fc'; ctx.lineWidth = isBtl ? 4 : 3;
               ctx.shadowColor = ctx.strokeStyle; ctx.shadowBlur = 12; ctx.globalAlpha = Math.min(1, util + 0.5);
               
               const p1 = toIso(wp.x, wp.y, wp.z + 15), p2 = toIso(next.x, next.y, next.z + 15);
               ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
               
-              if (util > 0.05) { // TP Sync Packet
+              if (util > 0.05) { 
                   const pt = (time * animSpeed) % 1;
                   const px = p1.x + (p2.x - p1.x) * pt, py = p1.y + (p2.y - p1.y) * pt;
                   
-                  // Visual Cue: Blur amount increases with latency (Signal dispersion simulation)
-                  // Fast (1ms) -> Blur 5 (Sharp-ish glow)
-                  // Slow (50ms) -> Blur 25 (Fuzzy/Uncertain)
                   const blurAmount = Math.max(5, latency / 2);
                   
                   ctx.fillStyle = '#f0abfc'; 
@@ -81,14 +80,10 @@ export const renderCluster = (
                   
                   ctx.beginPath(); ctx.arc(px, py, 5, 0, Math.PI*2); ctx.fill();
                   
-                  // Visual Cue: "Ghosting" effect for high latency (simulating lag/stutter)
                   if (latency > 20) {
-                      const lagOffset = 0.15; // Ghost is 15% behind
-                      // Handle wrap-around manually since modulo result can be negative in some langs, but JS % is remainder.
-                      // For 0-1 loop:
+                      const lagOffset = 0.15;
                       let ptLag = pt - lagOffset;
                       if (ptLag < 0) ptLag += 1;
-                      
                       const pxLag = p1.x + (p2.x - p1.x) * ptLag;
                       const pyLag = p1.y + (p2.y - p1.y) * ptLag;
                       
@@ -106,9 +101,24 @@ export const renderCluster = (
     // 3. Draw Nodes
     drawCube(ctx, head.x, head.y, head.z, 25, COLORS.ray, true, "Ray Head");
     wPos.forEach(wp => {
-      const active = wp.node.status === NodeStatus.COMPUTING;
+      const isOffline = wp.node.status === NodeStatus.OFFLINE;
+      const active = wp.node.status === NodeStatus.COMPUTING && !isOffline;
       const shake = active && (isDist || isNvLink) ? (Math.random() - 0.5) * 2 : 0;
       
+      if (isOffline) {
+          // Draw dead node
+          drawCube(ctx, wp.x, wp.y, wp.z, 30, '#0f172a', false, wp.node.name.split(' ')[1], 0.5);
+          // Red cross or outline
+          const iso = toIso(wp.x, wp.y, wp.z + 15);
+          ctx.strokeStyle = '#ef4444'; ctx.lineWidth = 2; ctx.setLineDash([5, 5]);
+          ctx.beginPath(); ctx.arc(iso.x, iso.y, 20, 0, Math.PI * 2); ctx.stroke();
+          ctx.setLineDash([]);
+          
+          ctx.fillStyle = '#ef4444'; ctx.font = 'bold 10px Inter'; ctx.textAlign = 'center';
+          ctx.fillText("OFFLINE", iso.x, iso.y + 4);
+          return;
+      }
+
       if (active && (isDist || isNvLink)) { // NVLink/High-Compute Glow
            const iso = toIso(wp.x, wp.y, wp.z + 15);
            const g = ctx.createRadialGradient(iso.x, iso.y, 5, iso.x, iso.y, 30);
@@ -137,7 +147,20 @@ export const renderCluster = (
 
     // 4. Request Packets (Head -> Worker)
     state.requests.filter(r => r.progress < 100).forEach(req => {
-       if (req.parallelShards > 1) wPos.forEach(wp => drawPacket(ctx, head, wp, req.progress, req.color));
-       else { const t = wPos.find(w => w.id === req.targetNodeId); if(t) drawPacket(ctx, head, t, req.progress, req.color); }
+       if (req.parallelShards > 1) {
+           // Distributed: Draw to all ONLINE workers
+           wPos.forEach(wp => {
+               if (wp.node.status !== NodeStatus.OFFLINE) {
+                   drawPacket(ctx, head, wp, req.progress, req.color);
+               }
+           });
+       }
+       else { 
+           const t = wPos.find(w => w.id === req.targetNodeId); 
+           // Only draw if target is online
+           if(t && t.node.status !== NodeStatus.OFFLINE) {
+               drawPacket(ctx, head, t, req.progress, req.color);
+           }
+       }
     });
 };

@@ -1,17 +1,16 @@
-
-
 import React from 'react';
-import { X, Cpu, Thermometer, Zap, Activity, Server, AlertTriangle, Network } from 'lucide-react';
-import { ClusterNode, MetricPoint, NodeType } from '../types';
+import { X, Cpu, Thermometer, Zap, Activity, Server, AlertTriangle, Network, Power } from 'lucide-react';
+import { ClusterNode, MetricPoint, NodeType, NodeStatus } from '../types';
 import { LineChart, Line, AreaChart, Area, ResponsiveContainer, Tooltip, YAxis, CartesianGrid, ReferenceLine } from 'recharts';
 
 interface Props {
   node: ClusterNode;
   onClose: () => void;
   metricsHistory: MetricPoint[];
+  onToggleStatus: () => void;
 }
 
-const NodeDetailsModal: React.FC<Props> = ({ node, onClose, metricsHistory }) => {
+const NodeDetailsModal: React.FC<Props> = ({ node, onClose, metricsHistory, onToggleStatus }) => {
   // Use last 100 points for the modal charts to show a decent trend
   const nodeHistory = metricsHistory.slice(-100).map(m => ({
     timestamp: m.timestamp,
@@ -24,7 +23,8 @@ const NodeDetailsModal: React.FC<Props> = ({ node, onClose, metricsHistory }) =>
   // Calculate average temperature over the last 20 ticks to determine trend
   const recentHistory = nodeHistory.slice(-20);
   const avgTemp = recentHistory.reduce((acc, curr) => acc + curr.temp, 0) / (recentHistory.length || 1);
-  const isOverheating = avgTemp > 80;
+  const isOverheating = avgTemp > 80 && node.status !== NodeStatus.OFFLINE;
+  const isOffline = node.status === NodeStatus.OFFLINE;
 
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
@@ -47,6 +47,7 @@ const NodeDetailsModal: React.FC<Props> = ({ node, onClose, metricsHistory }) =>
 
   const StatCard = ({ title, value, unit, icon: Icon, color, alert }: any) => (
     <div className={`p-3 rounded-xl border flex items-center gap-3 transition-all duration-300 ${
+        isOffline ? 'bg-slate-950/20 border-slate-800 grayscale opacity-50' :
         alert 
         ? 'bg-red-950/30 border-red-500/50 shadow-[0_0_15px_rgba(239,68,68,0.2)]' 
         : 'bg-slate-950/40 border-slate-800'
@@ -78,15 +79,15 @@ const NodeDetailsModal: React.FC<Props> = ({ node, onClose, metricsHistory }) =>
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-slate-800 bg-slate-900/50 shrink-0">
           <div className="flex items-center gap-3">
-             <div className={`p-2 rounded-lg ${node.type === NodeType.HEAD ? 'bg-sky-500/20 text-sky-400' : 'bg-rose-500/20 text-rose-400'}`}>
+             <div className={`p-2 rounded-lg ${isOffline ? 'bg-slate-800 text-slate-500' : node.type === NodeType.HEAD ? 'bg-sky-500/20 text-sky-400' : 'bg-rose-500/20 text-rose-400'}`}>
                 <Server size={20} />
              </div>
              <div>
-                <h3 className="font-bold text-slate-100">{node.name}</h3>
+                <h3 className={`font-bold ${isOffline ? 'text-slate-500 line-through' : 'text-slate-100'}`}>{node.name}</h3>
                 <div className="flex items-center gap-2">
                     <span className="text-xs text-slate-500 font-mono">{node.id}</span>
-                    <span className={`inline-block w-2 h-2 rounded-full ${node.status === 'COMPUTING' ? 'bg-green-500 animate-pulse' : 'bg-slate-600'}`}></span>
-                    <span className="text-[10px] font-bold text-slate-500 uppercase">{node.status}</span>
+                    <span className={`inline-block w-2 h-2 rounded-full ${isOffline ? 'bg-red-500' : node.status === 'COMPUTING' ? 'bg-green-500 animate-pulse' : 'bg-slate-600'}`}></span>
+                    <span className={`text-[10px] font-bold uppercase ${isOffline ? 'text-red-500' : 'text-slate-500'}`}>{node.status}</span>
                     {node.type === NodeType.WORKER && (
                         <span className="ml-2 px-1.5 py-0.5 rounded bg-slate-800 text-[10px] text-slate-400 border border-slate-700">
                             2x A100 • {node.totalVram}GB
@@ -95,9 +96,25 @@ const NodeDetailsModal: React.FC<Props> = ({ node, onClose, metricsHistory }) =>
                 </div>
              </div>
           </div>
-          <button onClick={onClose} className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors">
-            <X size={20} />
-          </button>
+          <div className="flex items-center gap-2">
+             {node.type === NodeType.WORKER && (
+                 <button 
+                    onClick={onToggleStatus}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg font-medium text-xs border transition-all ${
+                        isOffline 
+                        ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20' 
+                        : 'bg-red-500/10 text-red-400 border-red-500/30 hover:bg-red-500/20'
+                    }`}
+                 >
+                    <Power size={14} />
+                    {isOffline ? 'RECOVER NODE' : 'FAIL NODE'}
+                 </button>
+             )}
+             <div className="w-px h-6 bg-slate-800 mx-1"></div>
+             <button onClick={onClose} className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors">
+                <X size={20} />
+             </button>
+          </div>
         </div>
 
         {/* Warning Banner */}
@@ -113,7 +130,21 @@ const NodeDetailsModal: React.FC<Props> = ({ node, onClose, metricsHistory }) =>
             </div>
         )}
 
-        <div className="overflow-y-auto p-6 space-y-6">
+        {isOffline && (
+            <div className="bg-slate-800/50 border-b border-slate-700 px-4 py-3 flex items-center gap-3 animate-in slide-in-from-top-2">
+                <div className="p-1.5 bg-slate-700 rounded-full shrink-0">
+                    <Power size={16} className="text-slate-400" />
+                </div>
+                <div>
+                    <p className="text-sm font-bold text-slate-400">Node Offline</p>
+                    <p className="text-xs text-slate-500">This node has been disconnected from the cluster. It will not process any requests.</p>
+                </div>
+            </div>
+        )}
+
+        <div className="overflow-y-auto p-6 space-y-6 relative">
+            {isOffline && <div className="absolute inset-0 bg-slate-950/60 z-10 backdrop-blur-[1px]" />}
+            
             {/* Stats Grid */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 <StatCard title="GPU Util" value={node.gpuUtil.toFixed(1)} unit="%" icon={Cpu} color="#0ea5e9" />
