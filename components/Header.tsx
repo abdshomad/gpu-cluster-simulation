@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Activity, Database, Workflow, BookOpen, Play, Square, Users, ChevronDown, Check, Square as SquareIcon, CheckSquare } from 'lucide-react';
+import { Activity, Database, Workflow, BookOpen, Play, Square, Users, ChevronDown, CheckSquare, Square as SquareIcon, Lock } from 'lucide-react';
 import { MODELS } from '../constants';
 import { LoadBalancingStrategy } from '../types';
 
@@ -51,10 +51,10 @@ const Header: React.FC<Props> = ({ activeModelIds, onToggleModel, lbStrategy, se
                 <div id="model-selector" className="relative hidden md:block" ref={dropdownRef}>
                     <button 
                         onClick={() => setIsModelDropdownOpen(!isModelDropdownOpen)}
-                        className="flex items-center gap-2 bg-slate-800 p-1.5 px-3 rounded-lg border border-slate-700 hover:border-slate-600 transition-colors min-w-[200px] justify-between"
+                        className="flex items-center gap-2 bg-slate-800 p-1.5 px-3 rounded-lg border border-slate-700 hover:border-slate-600 transition-colors min-w-[200px] justify-between group"
                     >
                         <div className="flex items-center gap-2">
-                            <Database size={14} className="text-sky-500" />
+                            <Database size={14} className="text-sky-500 group-hover:scale-110 transition-transform" />
                             <div className="flex flex-col items-start">
                                 <span className="text-xs font-bold text-slate-200">{getActiveModelLabel()}</span>
                             </div>
@@ -99,25 +99,57 @@ const Header: React.FC<Props> = ({ activeModelIds, onToggleModel, lbStrategy, se
                     )}
                 </div>
 
+                {/* Load Balancing Strategy Selector */}
                 <div className="relative group hidden lg:block">
-                    <div className={`flex items-center bg-slate-800 p-1 rounded-lg border border-slate-700 ${isDistributed ? 'opacity-50' : ''}`}>
-                        <div className="px-2 flex items-center gap-1 text-slate-500"><Workflow size={12} /><span className="text-[10px] font-bold uppercase">LB</span></div>
-                        <select value={lbStrategy} onChange={(e) => setLbStrategy(e.target.value as any)} disabled={isDistributed} className="bg-transparent text-xs font-medium text-slate-300 focus:outline-none cursor-pointer py-1 pr-2">
-                            {Object.values(LoadBalancingStrategy).map(s => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}
-                        </select>
+                    <div className={`flex items-center p-1 rounded-lg border transition-colors ${
+                        isDistributed 
+                            ? 'bg-purple-500/10 border-purple-500/30' 
+                            : 'bg-slate-800 border-slate-700'
+                    }`}>
+                        <div className={`px-2 flex items-center gap-1 ${isDistributed ? 'text-purple-400' : 'text-slate-500'}`}>
+                            <Workflow size={12} />
+                            <span className="text-[10px] font-bold uppercase">LB</span>
+                        </div>
+                        
+                        {isDistributed ? (
+                            <div className="flex items-center gap-2 px-2 py-1 cursor-not-allowed">
+                                <span className="text-xs font-bold text-purple-300">Distributed</span>
+                                <Lock size={12} className="text-purple-400/70" />
+                            </div>
+                        ) : (
+                            <select 
+                                value={lbStrategy} 
+                                onChange={(e) => setLbStrategy(e.target.value as any)} 
+                                className="bg-transparent text-xs font-medium text-slate-300 focus:outline-none cursor-pointer py-1 pr-2"
+                            >
+                                {Object.values(LoadBalancingStrategy).map(s => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}
+                            </select>
+                        )}
                     </div>
+                    
                     {isDistributed && (
-                        <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-48 p-2 bg-slate-800 text-xs text-slate-300 rounded border border-slate-700 shadow-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none text-center z-50">
-                             Distributed/Tensor Parallel models handle their own load distribution.
+                        <div className="absolute top-full left-1/2 -translate-x-1/2 mt-3 w-72 p-4 bg-slate-900/95 backdrop-blur-xl text-xs text-slate-300 rounded-xl border border-purple-500/30 shadow-2xl opacity-0 group-hover:opacity-100 transition-all pointer-events-none text-center z-50 animate-in slide-in-from-top-2 ring-1 ring-white/5">
+                             <div className="flex flex-col items-center gap-2">
+                                 <div className="p-2 rounded-full bg-purple-500/20 text-purple-400 shadow-[0_0_15px_rgba(168,85,247,0.2)]"><Workflow size={16} /></div>
+                                 <div>
+                                    <p className="font-bold text-slate-100 mb-1">Load Balancing Automated</p>
+                                    <p className="text-slate-400 leading-relaxed">
+                                        Active models include distributed weights (TP &gt; 1). Requests are automatically sharded across GPUs, bypassing manual load balancing strategies.
+                                    </p>
+                                 </div>
+                             </div>
                         </div>
                     )}
                 </div>
+
                 <div className="w-px h-4 bg-slate-700 hidden md:block"></div>
-                <button onClick={() => setTutorialStep(tutorialStep === null ? 0 : null)} className={`flex items-center gap-2 px-4 py-1.5 rounded-md font-medium text-sm border ${tutorialStep !== null ? 'bg-emerald-600 border-emerald-500 text-white' : 'bg-slate-800 border-slate-700 text-slate-300'}`}>
+                
+                <button onClick={() => setTutorialStep(tutorialStep === null ? 0 : null)} className={`flex items-center gap-2 px-4 py-1.5 rounded-md font-medium text-sm border transition-all ${tutorialStep !== null ? 'bg-emerald-600 border-emerald-500 text-white shadow-[0_0_15px_rgba(16,185,129,0.3)]' : 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700'}`}>
                     <BookOpen size={14} /> {tutorialStep !== null ? 'Exit' : 'Tutorial'}
                 </button>
+                
                 <div className="flex items-center bg-slate-800 rounded-lg p-1 border border-slate-700">
-                    <button onClick={() => setIsRunning(!isRunning)} className={`flex items-center gap-2 px-4 py-1.5 rounded-md font-medium text-sm ${isRunning ? 'bg-red-500/20 text-red-400' : 'bg-emerald-500/20 text-emerald-400'}`}>
+                    <button onClick={() => setIsRunning(!isRunning)} className={`flex items-center gap-2 px-4 py-1.5 rounded-md font-medium text-sm transition-all ${isRunning ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30' : 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30'}`}>
                         {isRunning ? <Square size={14} fill="currentColor" /> : <Play size={14} fill="currentColor" />} <span className="hidden sm:inline">{isRunning ? 'Pause' : 'Simulate'}</span>
                     </button>
                     <div className="w-px h-4 bg-slate-700 mx-2"></div>
