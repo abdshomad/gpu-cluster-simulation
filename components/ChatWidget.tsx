@@ -49,7 +49,7 @@ const ChatWidget: React.FC<Props> = ({ simulationState }) => {
           </div>
         </div>
       )}
-      <button onClick={() => setOpen(!open)} className="pointer-events-auto bg-sky-600 hover:bg-sky-500 text-white rounded-full p-4 shadow-lg transition-transform hover:scale-105 flex items-center justify-center">
+      <button id="chat-widget-btn" onClick={() => setOpen(!open)} className="pointer-events-auto bg-sky-600 hover:bg-sky-500 text-white rounded-full p-4 shadow-lg transition-transform hover:scale-105 flex items-center justify-center">
         {open ? <Zap size={24} className="fill-current" /> : <MessageCircle size={24} />}
       </button>
     </div>

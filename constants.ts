@@ -1,4 +1,5 @@
 
+
 import { ClusterNode, NodeType, NodeStatus, ModelConfig } from './types';
 
 export const MODELS: Record<string, ModelConfig> = {
@@ -102,6 +103,7 @@ const workers: ClusterNode[] = Array.from({ length: 10 }, (_, i) => ({
   name: `Server ${i + 1} (2x A100)`,
   gpuUtil: 0,
   vramUtil: 0,
+  netUtil: 0,
   temp: 30,
   status: NodeStatus.IDLE,
   activeTokens: 0,
@@ -115,6 +117,7 @@ export const INITIAL_NODES: ClusterNode[] = [
     name: 'Ray Head Node',
     gpuUtil: 0,
     vramUtil: 5,
+    netUtil: 0,
     temp: 45,
     status: NodeStatus.IDLE,
     activeTokens: 0,
@@ -189,5 +192,23 @@ export const TUTORIAL_STEPS = [
     title: '4. Batching & Throughput',
     content: 'vLLM\'s Continuous Batching fills gaps in computation. With TinyLlama, throughput is high (thousands of tokens/s). With 405B, throughput drops due to network overhead and compute intensity, but it enables reasoning capabilities impossible on smaller models.',
     targetId: 'metrics-dashboard'
+  },
+  {
+    id: 4,
+    title: '5. Live Traffic Tracing',
+    content: 'The sidebar tracks every single user interaction in real-time. Watch how different requests have vastly different latencies depending on the complexity of the prompt and the current cluster load.',
+    targetId: 'sidebar-activity'
+  },
+  {
+    id: 5,
+    title: '6. Cluster Economics',
+    content: 'GPU compute is expensive! This tracker estimates the hourly burn rate. Balancing high throughput (Performance) against cost (Efficiency) is the primary job of an AI Infrastructure Engineer.',
+    targetId: 'cluster-stats-header'
+  },
+  {
+    id: 6,
+    title: '7. AI Tutor',
+    content: 'Still confused? Click the floating action button to chat with our AI Tutor. It uses Gemini 1.5 Flash to answer specific questions about this simulation or GPU architecture in general.',
+    targetId: 'chat-widget-btn'
   }
 ];

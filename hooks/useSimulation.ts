@@ -1,4 +1,5 @@
 
+
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { SimulationState, NodeType, NodeStatus, LoadBalancingStrategy, MetricPoint, RequestPacket, VirtualUser, UserState } from '../types';
 import { INITIAL_NODES, MODELS, MOCK_PROMPTS, USER_NAMES, USER_AVATARS } from '../constants';
@@ -109,35 +110,58 @@ export const useSimulation = () => {
         return u;
     });
 
-    // 5. Update Node Stats
+    // 5. Update Node Stats & Network Logic
     const activeReqs = newRequests.length;
+    
+    // Calculate theoretical network usage based on active models
+    // Distributed models (TP>1) consume MASSIVE interconnect bandwidth (AllReduce)
+    // Single node models consume minimal bandwidth (Request/Response text only)
+    let totalClusterBandwidth = 0; // GB/s
+
     const newNodes = state.nodes.map(node => {
         if (node.type === NodeType.HEAD) return { ...node, gpuUtil: Math.min(80, activeReqs), status: activeReqs > 0 ? NodeStatus.COMPUTING : NodeStatus.IDLE };
         
-        // Calculate load specifically for this node based on active requests
-        // A node works if it is the target of a single-node request OR if it's part of a distributed request (TP > 1 implies all nodes for now)
         const relevantRequests = newRequests.filter(r => r.parallelShards > 1 || r.targetNodeId === node.id);
         const load = relevantRequests.length;
         
+        // Compute Utilization
         const util = node.gpuUtil + (Math.min(100, load * 15) - node.gpuUtil) * 0.1;
         
-        // VRAM: Base static usage + dynamic usage per active request
-        // We need to sum the overhead of all active models + per-request overhead
+        // VRAM: Base + Dynamic
         let targetVram = baseVramUsage;
-        
-        // Add dynamic VRAM overhead (KV cache etc)
         const dynamicOverhead = relevantRequests.reduce((sum, r) => {
              const m = MODELS[r.modelId];
              const extra = m.id === 'llama-405b' ? 1.5 : 0.5;
              return sum + extra;
         }, 0);
-        
         targetVram += dynamicOverhead;
         
+        // Network: Calculate bandwidth per node
+        let nodeBandwidth = 0; // GB/s
+        if (load > 0) {
+            // Check if this node is running distributed workloads
+            const hasDistributed = relevantRequests.some(r => MODELS[r.modelId].tpSize > 1);
+            if (hasDistributed) {
+                // TP requires sync every layer. 
+                // Approx: (ModelSize / GPUs) * Layers * Frequency
+                // Simulating massive spike: ~20-50 GB/s per node for big models
+                nodeBandwidth = load * 45; 
+            } else {
+                // Just HTTP/gRPC overhead: ~0.1 GB/s
+                nodeBandwidth = load * 0.1;
+            }
+        }
+        totalClusterBandwidth += nodeBandwidth;
+
+        // Network Utilization % (Assuming 400Gbps/50GBps NICs)
+        const maxBw = 50; 
+        const currentNetUtil = Math.min(100, (nodeBandwidth / maxBw) * 100);
+
         return { 
             ...node, 
             gpuUtil: util, 
             vramUtil: node.vramUtil + (Math.min(100, targetVram) - node.vramUtil) * 0.1,
+            netUtil: node.netUtil + (currentNetUtil - node.netUtil) * 0.2, // Smooth transition
             temp: 30 + util * 0.4 + Math.random(), 
             status: util > 2 ? NodeStatus.COMPUTING : NodeStatus.IDLE, 
             activeTokens: load > 0 ? Math.floor(util * 5) : 0
@@ -153,9 +177,10 @@ export const useSimulation = () => {
         totalThroughput: throughput, 
         avgLatency: activeReqs > 0 ? 20 + activeReqs : 0,
         clusterUtilization: newNodes.reduce((acc, n) => acc + n.gpuUtil, 0) / newNodes.length,
+        totalBandwidth: totalClusterBandwidth,
         queueDepth: activeReqs, 
         activeUsers: newUsers.length, 
-        estimatedCostPerHour: costPerTick * 3600, // Extrapolate current tick cost to hour
+        estimatedCostPerHour: costPerTick * 3600, 
         avgGpuTemp: newNodes.reduce((acc, n) => acc + n.temp, 0) / newNodes.length,
         nodeActiveTokens: Object.fromEntries(newNodes.map(n => [n.id, n.activeTokens])),
         nodeGpuUtil: Object.fromEntries(newNodes.map(n => [n.id, n.gpuUtil])),

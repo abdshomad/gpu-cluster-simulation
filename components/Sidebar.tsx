@@ -14,7 +14,7 @@ const Sidebar: React.FC<Props> = ({ state, selectedNodeId, setSelectedNodeId }) 
     
     return (
         <div className="lg:col-span-4 space-y-6">
-            <div className="bg-slate-900 border border-slate-800 rounded-xl flex flex-col shadow-xl h-[400px]">
+            <div id="sidebar-activity" className="bg-slate-900 border border-slate-800 rounded-xl flex flex-col shadow-xl h-[400px]">
                  <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-900/80 rounded-t-xl backdrop-blur">
                      <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2"><Terminal size={14} /> Live Traffic</h3>
                      <div className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span><span className="text-xs text-green-500 font-mono">{state.virtualUsers.length} Active Users</span></div>

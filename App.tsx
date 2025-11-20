@@ -56,7 +56,7 @@ const App: React.FC = () => {
             <section id="cluster-view">
                 <div className="flex justify-between items-center mb-3">
                     <h2 className="text-xl font-semibold flex items-center gap-2"><Server size={20} className="text-sky-400" /> Cluster Topology <span className="text-sm text-slate-500 font-normal">(10 Workers)</span></h2>
-                    <div className="flex gap-3 text-xs">
+                    <div id="cluster-stats-header" className="flex gap-3 text-xs">
                         <div className="flex flex-col items-end"><span className="text-slate-500 uppercase">Active Models</span><span className="font-bold text-sky-400">{getActiveModelNames()}</span></div>
                         <div className="flex flex-col items-end"><span className="text-slate-500 uppercase">Est. Cost</span><span className="font-bold text-emerald-400">${simulationState.metricsHistory.slice(-1)[0]?.estimatedCostPerHour.toFixed(2) || '0.00'}/hr</span></div>
                     </div>

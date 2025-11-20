@@ -24,6 +24,7 @@ export interface ClusterNode {
   name: string;
   gpuUtil: number; // 0-100
   vramUtil: number; // 0-100
+  netUtil: number; // 0-100 (NIC Usage)
   temp: number; // Celsius
   status: NodeStatus;
   activeTokens: number; // Currently processing tokens
@@ -45,6 +46,7 @@ export interface MetricPoint {
   totalThroughput: number; // tokens/sec
   avgLatency: number; // ms
   clusterUtilization: number; // %
+  totalBandwidth: number; // GB/s (Network/Interconnect)
   queueDepth: number;
   activeUsers: number;
   estimatedCostPerHour: number; // $

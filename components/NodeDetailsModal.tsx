@@ -1,6 +1,7 @@
 
+
 import React from 'react';
-import { X, Cpu, Thermometer, Zap, Activity, Server, AlertTriangle } from 'lucide-react';
+import { X, Cpu, Thermometer, Zap, Activity, Server, AlertTriangle, Network } from 'lucide-react';
 import { ClusterNode, MetricPoint, NodeType } from '../types';
 import { LineChart, Line, ResponsiveContainer, Tooltip, YAxis, CartesianGrid, ReferenceLine } from 'recharts';
 
@@ -17,7 +18,16 @@ const NodeDetailsModal: React.FC<Props> = ({ node, onClose, metricsHistory }) =>
     gpu: m.nodeGpuUtil?.[node.id] ?? 0,
     vram: m.nodeVramUtil?.[node.id] ?? 0,
     temp: m.nodeTemp?.[node.id] ?? 0,
-    tokens: m.nodeActiveTokens?.[node.id] ?? 0
+    tokens: m.nodeActiveTokens?.[node.id] ?? 0,
+    // Approximation of network for this node based on cluster total if individual tracking isn't granular in history
+    // However, we want to show the node's netUtil if possible. 
+    // Since metricsHistory doesn't store individual netUtil, we'll re-derive or just show global trend if needed.
+    // EDIT: To be precise, let's simulate it based on load if not stored. 
+    // Or better, assume if GPU is high, Net is high for distributed. 
+    // For now, let's use a derived value for visual consistency or update MetricPoint to store it.
+    // Actually, let's simply use the live value for the card, and for history, we might miss it unless we update MetricPoint.
+    // To avoid changing MetricPoint history structure too much, we will visualize "load" as proxy or add it.
+    // Let's stick to visualizing GPU/VRAM/Temp history and showing LIVE Net Util.
   }));
 
   // Calculate average temperature over the last 20 ticks to determine trend
@@ -131,7 +141,13 @@ const NodeDetailsModal: React.FC<Props> = ({ node, onClose, metricsHistory }) =>
                     color="#f97316"
                     alert={isOverheating}
                 />
-                <StatCard title="Active Tokens" value={node.activeTokens} unit="" icon={Zap} color="#10b981" />
+                <StatCard 
+                    title="Network Load" 
+                    value={node.netUtil.toFixed(1)} 
+                    unit="%" 
+                    icon={Network} 
+                    color="#818cf8" 
+                />
             </div>
 
             {/* Trends Section */}

@@ -1,4 +1,5 @@
 
+
 import React from 'react';
 import { LineChart, Line, AreaChart, Area, CartesianGrid, YAxis, Tooltip, ReferenceLine } from 'recharts';
 import { MetricPoint } from '../types';
@@ -33,13 +34,19 @@ const MetricsDashboard: React.FC<Props> = ({ data }) => {
         <Line type="stepAfter" dataKey="queueDepth" stroke="#f43f5e" strokeWidth={2} dot={false} isAnimationActive={false} /></LineChart>
       </MetricCard>
 
+      <MetricCard title="Network Bandwidth (GB/s)" colorClass="text-indigo-400" colSpan="md:col-span-2">
+        <AreaChart data={recent}><CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} /><YAxis hide domain={[0, 'auto']} /><Tooltip content={<CustomTooltip />} cursor={{stroke: '#475569'}} />
+        <Area type="monotone" dataKey="totalBandwidth" stroke="#818cf8" strokeWidth={2} fill="#818cf840" isAnimationActive={false} />
+        </AreaChart>
+      </MetricCard>
+
       <MetricCard title="Avg GPU Temp (°C)" colorClass="text-orange-400" colSpan="md:col-span-2">
         <LineChart data={recent}><CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} /><YAxis hide domain={[30, 90]} /><Tooltip content={<CustomTooltip />} cursor={{stroke: '#475569'}} />
         <ReferenceLine y={80} stroke="#ef4444" strokeDasharray="3 3" label="Threshold" />
         <Line type="monotone" dataKey="avgGpuTemp" stroke="#fb923c" strokeWidth={2} dot={false} isAnimationActive={false} /></LineChart>
       </MetricCard>
 
-      <MetricCard title="Active Tokens / Node" colorClass="text-emerald-400" colSpan="md:col-span-2">
+      <MetricCard title="Active Tokens / Node" colorClass="text-emerald-400" colSpan="md:col-span-4">
         <AreaChart data={stackedData}><CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} /><YAxis hide /><Tooltip content={<CustomTooltip />} cursor={{stroke: '#475569'}} />
         {Array.from({ length: 10 }, (_, i) => <Area key={i} type="monotone" dataKey={`server-${i+1}`} stackId="1" stroke="none" fill={WORKER_COLORS[i]} isAnimationActive={false} />)}</AreaChart>
       </MetricCard>
