@@ -442,21 +442,59 @@ const App: React.FC = () => {
             </div>
 
             {/* LB Strategy Selector */}
-            <div className={`hidden lg:flex items-center bg-slate-800 p-1 rounded-lg border border-slate-700 ${isDistributedModel ? 'opacity-50 pointer-events-none' : ''}`} title={isDistributedModel ? "Load Balancing N/A for Distributed Models" : "Select Load Balancing Strategy"}>
-                <div className="px-2 flex items-center gap-1 text-slate-500">
-                    <Workflow size={12} />
-                    <span className="text-[10px] font-bold uppercase">LB</span>
+            <div className="relative group hidden lg:block">
+                <div className={`flex items-center bg-slate-800 p-1 rounded-lg border border-slate-700 ${isDistributedModel ? 'opacity-50 pointer-events-none' : ''}`}>
+                    <div className="px-2 flex items-center gap-1 text-slate-500">
+                        <Workflow size={12} />
+                        <span className="text-[10px] font-bold uppercase">LB</span>
+                    </div>
+                     <select 
+                        value={lbStrategy} 
+                        onChange={(e) => setLbStrategy(e.target.value as LoadBalancingStrategy)}
+                        disabled={isDistributedModel}
+                        className="bg-transparent text-xs font-medium text-slate-300 focus:outline-none cursor-pointer py-1 pr-2"
+                     >
+                        <option value={LoadBalancingStrategy.RANDOM}>Random</option>
+                        <option value={LoadBalancingStrategy.ROUND_ROBIN}>Round Robin</option>
+                        <option value={LoadBalancingStrategy.LEAST_CONNECTIONS}>Least Conn.</option>
+                     </select>
                 </div>
-                 <select 
-                    value={lbStrategy} 
-                    onChange={(e) => setLbStrategy(e.target.value as LoadBalancingStrategy)}
-                    disabled={isDistributedModel}
-                    className="bg-transparent text-xs font-medium text-slate-300 focus:outline-none cursor-pointer py-1 pr-2"
-                 >
-                    <option value={LoadBalancingStrategy.RANDOM}>Random</option>
-                    <option value={LoadBalancingStrategy.ROUND_ROBIN}>Round Robin</option>
-                    <option value={LoadBalancingStrategy.LEAST_CONNECTIONS}>Least Conn.</option>
-                 </select>
+
+                {/* Tooltip */}
+                <div className="absolute top-full left-1/2 -translate-x-1/2 mt-3 w-64 p-4 bg-slate-900/95 backdrop-blur border border-slate-700 rounded-xl shadow-2xl z-50 opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none translate-y-2 group-hover:translate-y-0">
+                    {isDistributedModel ? (
+                         <p className="text-xs text-slate-400 text-center leading-relaxed">
+                             <span className="text-rose-400 font-bold block mb-1">Load Balancing Disabled</span>
+                             Distributed models (Tensor Parallelism) utilize all nodes simultaneously for every request.
+                         </p>
+                     ) : (
+                        <>
+                            <div className="flex items-center gap-2 mb-3 pb-2 border-b border-slate-800">
+                                <Workflow size={14} className="text-sky-500" />
+                                <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Strategy Guide</h4>
+                            </div>
+                            <ul className="space-y-3">
+                                <li className="text-[11px] leading-tight">
+                                    <div className="flex justify-between items-center mb-1">
+                                        <span className="text-sky-400 font-bold">Random</span>
+                                        <span className="text-[9px] text-slate-600 uppercase font-mono">Default</span>
+                                    </div>
+                                    <span className="text-slate-400">Distributes requests arbitrarily. Good for simple, uniform workloads.</span>
+                                </li>
+                                <li className="text-[11px] leading-tight">
+                                    <span className="text-emerald-400 font-bold block mb-1">Round Robin</span>
+                                    <span className="text-slate-400">Sequential distribution (A → B → C). Ensures equal request counts per node.</span>
+                                </li>
+                                <li className="text-[11px] leading-tight">
+                                    <span className="text-violet-400 font-bold block mb-1">Least Connections</span>
+                                    <span className="text-slate-400">Directs traffic to the idlest node. Best for variable-length tasks.</span>
+                                </li>
+                            </ul>
+                        </>
+                     )}
+                     {/* Arrow tip */}
+                     <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-slate-900 border-t border-l border-slate-700 transform rotate-45"></div>
+                </div>
             </div>
 
             <div className="w-px h-4 bg-slate-700 hidden md:block"></div>
