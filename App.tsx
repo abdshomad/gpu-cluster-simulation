@@ -1,12 +1,13 @@
 
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   Play, Square, Zap, Activity, Server, 
-  Cpu, MessageCircle, BookOpen, ChevronRight, ChevronLeft, Database, Users, DollarSign, Terminal, CreditCard, BarChart3
+  Cpu, MessageCircle, BookOpen, ChevronRight, ChevronLeft, Database, Users, DollarSign, Terminal, CreditCard, BarChart3, Workflow
 } from 'lucide-react';
 import { 
   SimulationState, NodeType, NodeStatus, MetricPoint, RequestPacket,
-  VirtualUser, UserState, LogEntry
+  VirtualUser, UserState, LogEntry, LoadBalancingStrategy
 } from './types';
 import { INITIAL_NODES, TUTORIAL_STEPS, MODELS, USER_NAMES, USER_AVATARS, MOCK_PROMPTS } from './constants';
 import ClusterVisualization from './components/ClusterVisualization';
@@ -29,6 +30,7 @@ const App: React.FC = () => {
   const [targetUserCount, setTargetUserCount] = useState(5); // 0 to 50
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [rightPanelTab, setRightPanelTab] = useState<'nodes' | 'users'>('nodes');
+  const [lbStrategy, setLbStrategy] = useState<LoadBalancingStrategy>(LoadBalancingStrategy.RANDOM);
   
   // Tutorial State
   const [tutorialStep, setTutorialStep] = useState<number | null>(null); // null = free mode
@@ -44,6 +46,7 @@ const App: React.FC = () => {
   // --- Refs for Simulation Loop ---
   const stateRef = useRef(simulationState);
   stateRef.current = simulationState;
+  const rrIndexRef = useRef(0); // Round Robin Index
 
   // --- Helper: Create User ---
   const createVirtualUser = (idSuffix: number): VirtualUser => {
@@ -139,10 +142,46 @@ const App: React.FC = () => {
 
                 if (currentModel.tpSize > 1) {
                     parallelShards = 10; 
+                    // For distributed models, it hits all nodes, so targetNodeId is undefined/irrelevant for routing
                 } else {
                     const workers = currentState.nodes.filter(n => n.type === NodeType.WORKER);
-                    const randomWorker = workers[Math.floor(Math.random() * workers.length)];
-                    targetNodeId = randomWorker.id;
+                    
+                    if (lbStrategy === LoadBalancingStrategy.ROUND_ROBIN) {
+                        // Round Robin
+                        const nextIndex = (rrIndexRef.current + 1) % workers.length;
+                        rrIndexRef.current = nextIndex;
+                        targetNodeId = workers[nextIndex].id;
+
+                    } else if (lbStrategy === LoadBalancingStrategy.LEAST_CONNECTIONS) {
+                        // Least Connections: Find worker with fewest active requests
+                        const nodeLoads = new Map<string, number>();
+                        workers.forEach(w => nodeLoads.set(w.id, 0));
+                        
+                        // Count current active requests
+                        newRequests.forEach(r => {
+                            if (r.targetNodeId) {
+                                nodeLoads.set(r.targetNodeId, (nodeLoads.get(r.targetNodeId) || 0) + 1);
+                            }
+                        });
+                        
+                        // Find min
+                        let minLoad = Infinity;
+                        let bestNode = workers[0];
+                        
+                        workers.forEach(w => {
+                            const load = nodeLoads.get(w.id) || 0;
+                            if (load < minLoad) {
+                                minLoad = load;
+                                bestNode = w;
+                            }
+                        });
+                        targetNodeId = bestNode.id;
+
+                    } else {
+                        // Random (Default)
+                        const randomWorker = workers[Math.floor(Math.random() * workers.length)];
+                        targetNodeId = randomWorker.id;
+                    }
                 }
 
                 newRequests.push({
@@ -323,7 +362,7 @@ const App: React.FC = () => {
         activityLog: newLog
     }));
 
-  }, [targetUserCount, tutorialStep]);
+  }, [targetUserCount, tutorialStep, lbStrategy]);
 
   useEffect(() => {
     let interval: any;
@@ -369,6 +408,9 @@ const App: React.FC = () => {
   // Find selected node for modal
   const selectedNode = simulationState.nodes.find(n => n.id === selectedNodeId);
 
+  // Check if LB selector should be disabled (e.g. for distributed models which use all nodes)
+  const isDistributedModel = MODELS[simulationState.activeModelId].tpSize > 1;
+
   // --- Render ---
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-sky-500/30 pb-20">
@@ -397,6 +439,24 @@ const App: React.FC = () => {
                         {model.name}
                     </button>
                 ))}
+            </div>
+
+            {/* LB Strategy Selector */}
+            <div className={`hidden lg:flex items-center bg-slate-800 p-1 rounded-lg border border-slate-700 ${isDistributedModel ? 'opacity-50 pointer-events-none' : ''}`} title={isDistributedModel ? "Load Balancing N/A for Distributed Models" : "Select Load Balancing Strategy"}>
+                <div className="px-2 flex items-center gap-1 text-slate-500">
+                    <Workflow size={12} />
+                    <span className="text-[10px] font-bold uppercase">LB</span>
+                </div>
+                 <select 
+                    value={lbStrategy} 
+                    onChange={(e) => setLbStrategy(e.target.value as LoadBalancingStrategy)}
+                    disabled={isDistributedModel}
+                    className="bg-transparent text-xs font-medium text-slate-300 focus:outline-none cursor-pointer py-1 pr-2"
+                 >
+                    <option value={LoadBalancingStrategy.RANDOM}>Random</option>
+                    <option value={LoadBalancingStrategy.ROUND_ROBIN}>Round Robin</option>
+                    <option value={LoadBalancingStrategy.LEAST_CONNECTIONS}>Least Conn.</option>
+                 </select>
             </div>
 
             <div className="w-px h-4 bg-slate-700 hidden md:block"></div>

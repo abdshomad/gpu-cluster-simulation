@@ -1,4 +1,5 @@
 
+
 export enum NodeType {
   HEAD = 'HEAD',
   WORKER = 'WORKER'
@@ -9,6 +10,12 @@ export enum NodeStatus {
   COMPUTING = 'COMPUTING',
   ERROR = 'ERROR',
   OFFLINE = 'OFFLINE'
+}
+
+export enum LoadBalancingStrategy {
+  RANDOM = 'RANDOM',
+  ROUND_ROBIN = 'ROUND_ROBIN',
+  LEAST_CONNECTIONS = 'LEAST_CONNECTIONS'
 }
 
 export interface ClusterNode {
