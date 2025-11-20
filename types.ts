@@ -62,6 +62,7 @@ export interface MetricPoint {
   nodeActiveTokens: Record<string, number>; // Active tokens per node
   nodeGpuUtil: Record<string, number>; // GPU Util per node
   nodeVramUtil: Record<string, number>; // VRAM Util per node
+  nodeNetUtil: Record<string, number>; // Network Util per node
   nodeTemp: Record<string, number>; // Temp per node
 }
 

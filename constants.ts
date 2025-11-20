@@ -95,10 +95,10 @@ export const MODELS: Record<string, ModelConfig> = {
   }
 };
 
-export const NETWORK_CAPACITY: Record<NetworkSpeed, { name: string, bandwidth: number, label: string }> = {
-  [NetworkSpeed.ETH_10G]: { name: '10GbE Ethernet', bandwidth: 1.25, label: '10G' },
-  [NetworkSpeed.ETH_100G]: { name: '100GbE Fabric', bandwidth: 12.5, label: '100G' },
-  [NetworkSpeed.IB_400G]: { name: '400G InfiniBand', bandwidth: 50.0, label: '400G' }
+export const NETWORK_CAPACITY: Record<NetworkSpeed, { name: string, bandwidth: number, label: string, latency: number }> = {
+  [NetworkSpeed.ETH_10G]: { name: '10GbE Ethernet', bandwidth: 1.25, label: '10G', latency: 50 }, // High latency (ms-ish relative factor)
+  [NetworkSpeed.ETH_100G]: { name: '100GbE Fabric', bandwidth: 12.5, label: '100G', latency: 10 },
+  [NetworkSpeed.IB_400G]: { name: '400G InfiniBand', bandwidth: 50.0, label: '400G', latency: 1 } // Ultra low latency
 };
 
 // Generate 10 workers (Servers)

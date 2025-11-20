@@ -3,7 +3,7 @@
 import React from 'react';
 import { X, Cpu, Thermometer, Zap, Activity, Server, AlertTriangle, Network } from 'lucide-react';
 import { ClusterNode, MetricPoint, NodeType } from '../types';
-import { LineChart, Line, ResponsiveContainer, Tooltip, YAxis, CartesianGrid, ReferenceLine } from 'recharts';
+import { LineChart, Line, AreaChart, Area, ResponsiveContainer, Tooltip, YAxis, CartesianGrid, ReferenceLine } from 'recharts';
 
 interface Props {
   node: ClusterNode;
@@ -18,16 +18,7 @@ const NodeDetailsModal: React.FC<Props> = ({ node, onClose, metricsHistory }) =>
     gpu: m.nodeGpuUtil?.[node.id] ?? 0,
     vram: m.nodeVramUtil?.[node.id] ?? 0,
     temp: m.nodeTemp?.[node.id] ?? 0,
-    tokens: m.nodeActiveTokens?.[node.id] ?? 0,
-    // Approximation of network for this node based on cluster total if individual tracking isn't granular in history
-    // However, we want to show the node's netUtil if possible. 
-    // Since metricsHistory doesn't store individual netUtil, we'll re-derive or just show global trend if needed.
-    // EDIT: To be precise, let's simulate it based on load if not stored. 
-    // Or better, assume if GPU is high, Net is high for distributed. 
-    // For now, let's use a derived value for visual consistency or update MetricPoint to store it.
-    // Actually, let's simply use the live value for the card, and for history, we might miss it unless we update MetricPoint.
-    // To avoid changing MetricPoint history structure too much, we will visualize "load" as proxy or add it.
-    // Let's stick to visualizing GPU/VRAM/Temp history and showing LIVE Net Util.
+    net: m.nodeNetUtil?.[node.id] ?? 0,
   }));
 
   // Calculate average temperature over the last 20 ticks to determine trend
@@ -41,7 +32,7 @@ const NodeDetailsModal: React.FC<Props> = ({ node, onClose, metricsHistory }) =>
         <div className="bg-slate-800 border border-slate-600 p-2 rounded shadow-lg text-xs font-mono z-50">
           <p className="text-slate-400 mb-1">Tick: {label}</p>
           <div className="flex items-center gap-2">
-            <span style={{ color: payload[0].stroke }}>
+            <span style={{ color: payload[0].stroke || payload[0].fill }}>
               {payload[0].name}:
             </span>
             <span className="font-bold text-slate-200">
@@ -155,7 +146,7 @@ const NodeDetailsModal: React.FC<Props> = ({ node, onClose, metricsHistory }) =>
                 <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-2">
                     <Activity size={14} /> Performance Trends (Last 1h)
                 </h4>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* GPU Chart */}
                     <div className="bg-slate-950/40 rounded-xl border border-slate-800 p-4">
                         <div className="text-[10px] font-bold text-sky-500 mb-2 uppercase">GPU Utilization</div>
@@ -198,6 +189,21 @@ const NodeDetailsModal: React.FC<Props> = ({ node, onClose, metricsHistory }) =>
                                     <Tooltip content={<CustomTooltip />} cursor={{stroke: '#334155'}} />
                                     <Line type="monotone" dataKey="temp" name="Temp" stroke={isOverheating ? '#ef4444' : '#f97316'} strokeWidth={2} dot={false} isAnimationActive={false} />
                                 </LineChart>
+                            </ResponsiveContainer>
+                        </div>
+                    </div>
+                    
+                    {/* Network Load Chart */}
+                    <div className="bg-slate-950/40 rounded-xl border border-slate-800 p-4">
+                        <div className="text-[10px] font-bold text-indigo-500 mb-2 uppercase">Network Load (%)</div>
+                        <div className="h-32">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <AreaChart data={nodeHistory}>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+                                    <YAxis domain={[0, 100]} hide />
+                                    <Tooltip content={<CustomTooltip />} cursor={{stroke: '#334155'}} />
+                                    <Area type="monotone" dataKey="net" name="Net Util" stroke="#818cf8" fill="#818cf820" strokeWidth={2} isAnimationActive={false} />
+                                </AreaChart>
                             </ResponsiveContainer>
                         </div>
                     </div>

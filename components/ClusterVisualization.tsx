@@ -52,7 +52,10 @@ const ClusterVisualization: React.FC<Props> = ({ simulationState, tutorialStep, 
       const isHighNvLink = activeModels.some(id => MODELS[id] && MODELS[id].tpSize === 1 && MODELS[id].vramPerGpu > 25);
       
       let maxNetUtil = 0;
-      const time = Date.now() / 50;
+      
+      // Animation speed depends on network capability
+      const speedMultiplier = networkSpeed === NetworkSpeed.IB_400G ? 2.5 : networkSpeed === NetworkSpeed.ETH_100G ? 1.5 : 0.5;
+      const time = Date.now() / 50 * speedMultiplier;
       
       if (isDistributed) {
         ctx.setLineDash([4, 4]);
@@ -139,7 +142,7 @@ const ClusterVisualization: React.FC<Props> = ({ simulationState, tutorialStep, 
     };
     render();
     return () => cancelAnimationFrame(frameId);
-  }, [simulationState]);
+  }, [simulationState, networkSpeed]);
 
   const capacity = NETWORK_CAPACITY[networkSpeed];
   // Check if cluster is bottlenecked
@@ -154,7 +157,11 @@ const ClusterVisualization: React.FC<Props> = ({ simulationState, tutorialStep, 
         <div className="absolute top-4 right-4 pointer-events-none flex flex-col items-end gap-2">
              <div className="flex flex-col items-end bg-slate-900/80 px-3 py-2 rounded-lg border border-slate-800 backdrop-blur">
                  <span className="text-[10px] font-bold uppercase text-slate-500 mb-1">Interconnect Speed</span>
-                 <span className="text-lg font-mono font-bold text-slate-200">{capacity.label} <span className="text-xs text-slate-500 font-normal">({capacity.bandwidth} GB/s)</span></span>
+                 <div className="flex items-baseline gap-2">
+                    <span className="text-lg font-mono font-bold text-slate-200">{capacity.label}</span>
+                    <span className="text-xs text-slate-500 font-normal">({capacity.bandwidth} GB/s)</span>
+                 </div>
+                 <span className="text-[9px] text-slate-600 mt-0.5">Latency Factor: {capacity.latency}x</span>
              </div>
              
              {isBottlenecked && (

@@ -140,8 +140,17 @@ export const useSimulation = () => {
     const finished = new Map();
     newRequests = newRequests.map(r => {
         const m = MODELS[r.modelId];
-        // Apply throttle factor to speed
-        const baseSpeed = ((m?.tokensPerSec || 100) / 60) * throttleFactor;
+        
+        // Speed penalty from latency for distributed models
+        let latencyPenalty = 1.0;
+        if (m.tpSize > 1) {
+            // Higher latency (50 for 10G vs 1 for IB) dramatically affects synchronization steps
+            // Latency acts as a drag coefficient
+            latencyPenalty = 1.0 / (1 + currentNetworkCap.latency * 0.05);
+        }
+
+        // Apply throttle factor (bandwidth) AND latency penalty to speed
+        const baseSpeed = ((m?.tokensPerSec || 100) / 60) * throttleFactor * latencyPenalty;
         
         const p = r.progress + baseSpeed;
         if (p >= 100) finished.set(r.id, r);
@@ -225,6 +234,7 @@ export const useSimulation = () => {
         nodeActiveTokens: Object.fromEntries(newNodes.map(n => [n.id, n.activeTokens])),
         nodeGpuUtil: Object.fromEntries(newNodes.map(n => [n.id, n.gpuUtil])),
         nodeVramUtil: Object.fromEntries(newNodes.map(n => [n.id, n.vramUtil])),
+        nodeNetUtil: Object.fromEntries(newNodes.map(n => [n.id, n.netUtil])),
         nodeTemp: Object.fromEntries(newNodes.map(n => [n.id, n.temp])),
     };
 
