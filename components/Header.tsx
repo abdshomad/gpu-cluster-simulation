@@ -28,9 +28,30 @@ const Header: React.FC<Props> = ({ activeModelId, onSwitchModel, lbStrategy, set
             <div className="flex items-center gap-4">
                 <div className="flex bg-slate-800 p-1 rounded-lg border border-slate-700 hidden md:flex">
                     {Object.values(MODELS).map(m => (
-                        <button key={m.id} onClick={() => onSwitchModel(m.id)} className={`px-3 py-1.5 text-xs font-medium rounded-md flex items-center gap-2 transition-all ${activeModelId === m.id ? 'bg-sky-600 text-white' : 'text-slate-400 hover:text-slate-200'}`}>
-                            <Database size={12} /> {m.name}
-                        </button>
+                        <div key={m.id} className="relative group">
+                            <button onClick={() => onSwitchModel(m.id)} className={`px-3 py-1.5 text-xs font-medium rounded-md flex items-center gap-2 transition-all ${activeModelId === m.id ? 'bg-sky-600 text-white' : 'text-slate-400 hover:text-slate-200'}`}>
+                                <Database size={12} /> {m.name}
+                            </button>
+                            {/* Tooltip */}
+                            <div className="absolute top-full left-1/2 -translate-x-1/2 mt-3 w-64 p-3 bg-slate-900/95 backdrop-blur-xl border border-slate-700 rounded-xl shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 pointer-events-none text-left ring-1 ring-white/10 transform origin-top scale-95 group-hover:scale-100">
+                                <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-slate-900 border-t border-l border-slate-700 rotate-45"></div>
+                                <div className="relative">
+                                    <div className="flex items-center gap-2 mb-2 border-b border-slate-800 pb-2">
+                                        <Database size={14} className="text-sky-500" />
+                                        <span className="font-bold text-slate-200 text-xs">{m.name}</span>
+                                        <span className="ml-auto text-[10px] font-mono bg-slate-800 px-1.5 py-0.5 rounded text-slate-400 border border-slate-700">{m.paramSize}</span>
+                                    </div>
+                                    <p className="text-[11px] text-slate-400 leading-relaxed">{m.description}</p>
+                                    <div className="mt-2 flex gap-2">
+                                        {m.tpSize > 1 ? (
+                                            <span className="text-[10px] bg-purple-500/10 text-purple-400 px-1.5 py-0.5 rounded border border-purple-500/20">Tensor Parallel (TP{m.tpSize})</span>
+                                        ) : (
+                                            <span className="text-[10px] bg-emerald-500/10 text-emerald-400 px-1.5 py-0.5 rounded border border-emerald-500/20">Data Parallel (Replica)</span>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     ))}
                 </div>
                 <div className="relative group hidden lg:block">
@@ -40,7 +61,11 @@ const Header: React.FC<Props> = ({ activeModelId, onSwitchModel, lbStrategy, set
                             {Object.values(LoadBalancingStrategy).map(s => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}
                         </select>
                     </div>
-                    {/* Tooltip omitted for brevity in this view, functionality remains in main App if needed or can be re-added */}
+                    {isDistributed && (
+                        <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-48 p-2 bg-slate-800 text-xs text-slate-300 rounded border border-slate-700 shadow-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none text-center z-50">
+                            Load balancing is handled automatically by Tensor Parallelism for large models.
+                        </div>
+                    )}
                 </div>
                 <div className="w-px h-4 bg-slate-700 hidden md:block"></div>
                 <button onClick={() => setTutorialStep(tutorialStep === null ? 0 : null)} className={`flex items-center gap-2 px-4 py-1.5 rounded-md font-medium text-sm border ${tutorialStep !== null ? 'bg-emerald-600 border-emerald-500 text-white' : 'bg-slate-800 border-slate-700 text-slate-300'}`}>
