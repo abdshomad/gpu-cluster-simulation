@@ -1,12 +1,12 @@
 
-import React from 'react';
-import { Activity, Database, Workflow, BookOpen, Play, Square, Users } from 'lucide-react';
-import { MODELS, TUTORIAL_STEPS } from '../constants';
+import React, { useState, useRef, useEffect } from 'react';
+import { Activity, Database, Workflow, BookOpen, Play, Square, Users, ChevronDown, Check, Square as SquareIcon, CheckSquare } from 'lucide-react';
+import { MODELS } from '../constants';
 import { LoadBalancingStrategy } from '../types';
 
 interface Props {
-    activeModelId: string;
-    onSwitchModel: (id: string) => void;
+    activeModelIds: string[];
+    onToggleModel: (id: string) => void;
     lbStrategy: LoadBalancingStrategy;
     setLbStrategy: (s: LoadBalancingStrategy) => void;
     tutorialStep: number | null;
@@ -17,8 +17,29 @@ interface Props {
     setTargetUserCount: (n: number) => void;
 }
 
-const Header: React.FC<Props> = ({ activeModelId, onSwitchModel, lbStrategy, setLbStrategy, tutorialStep, setTutorialStep, isRunning, setIsRunning, targetUserCount, setTargetUserCount }) => {
-    const isDistributed = MODELS[activeModelId].tpSize > 1;
+const Header: React.FC<Props> = ({ activeModelIds, onToggleModel, lbStrategy, setLbStrategy, tutorialStep, setTutorialStep, isRunning, setIsRunning, targetUserCount, setTargetUserCount }) => {
+    const [isModelDropdownOpen, setIsModelDropdownOpen] = useState(false);
+    const dropdownRef = useRef<HTMLDivElement>(null);
+    
+    // Determine if distributed strategy is forced (if any active model is TP > 1)
+    const isDistributed = activeModelIds.some(id => MODELS[id].tpSize > 1);
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+                setIsModelDropdownOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const getActiveModelLabel = () => {
+        if (activeModelIds.length === 0) return "Select Model";
+        if (activeModelIds.length === 1) return MODELS[activeModelIds[0]].name;
+        return `${activeModelIds.length} Models Active`;
+    };
+
     return (
         <header className="h-16 border-b border-slate-800 bg-slate-900/50 backdrop-blur-md flex items-center justify-between px-6 fixed w-full top-0 z-50">
             <div className="flex items-center gap-3">
@@ -26,34 +47,58 @@ const Header: React.FC<Props> = ({ activeModelId, onSwitchModel, lbStrategy, set
                 <h1 className="font-bold text-lg tracking-tight">Ray & vLLM <span className="font-light text-slate-400">Sim</span></h1>
             </div>
             <div className="flex items-center gap-4">
-                <div id="model-selector" className="flex bg-slate-800 p-1 rounded-lg border border-slate-700 hidden md:flex">
-                    {Object.values(MODELS).map(m => (
-                        <div key={m.id} className="relative group">
-                            <button onClick={() => onSwitchModel(m.id)} className={`px-3 py-1.5 text-xs font-medium rounded-md flex items-center gap-2 transition-all ${activeModelId === m.id ? 'bg-sky-600 text-white' : 'text-slate-400 hover:text-slate-200'}`}>
-                                <Database size={12} /> {m.name}
-                            </button>
-                            {/* Tooltip */}
-                            <div className="absolute top-full left-1/2 -translate-x-1/2 mt-3 w-64 p-3 bg-slate-900/95 backdrop-blur-xl border border-slate-700 rounded-xl shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 pointer-events-none text-left ring-1 ring-white/10 transform origin-top scale-95 group-hover:scale-100">
-                                <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-slate-900 border-t border-l border-slate-700 rotate-45"></div>
-                                <div className="relative">
-                                    <div className="flex items-center gap-2 mb-2 border-b border-slate-800 pb-2">
-                                        <Database size={14} className="text-sky-500" />
-                                        <span className="font-bold text-slate-200 text-xs">{m.name}</span>
-                                        <span className="ml-auto text-[10px] font-mono bg-slate-800 px-1.5 py-0.5 rounded text-slate-400 border border-slate-700">{m.paramSize}</span>
-                                    </div>
-                                    <p className="text-[11px] text-slate-400 leading-relaxed">{m.description}</p>
-                                    <div className="mt-2 flex gap-2">
-                                        {m.tpSize > 1 ? (
-                                            <span className="text-[10px] bg-purple-500/10 text-purple-400 px-1.5 py-0.5 rounded border border-purple-500/20">Tensor Parallel (TP{m.tpSize})</span>
-                                        ) : (
-                                            <span className="text-[10px] bg-emerald-500/10 text-emerald-400 px-1.5 py-0.5 rounded border border-emerald-500/20">Data Parallel (Replica)</span>
-                                        )}
-                                    </div>
-                                </div>
+                {/* Model Selector Dropdown */}
+                <div id="model-selector" className="relative hidden md:block" ref={dropdownRef}>
+                    <button 
+                        onClick={() => setIsModelDropdownOpen(!isModelDropdownOpen)}
+                        className="flex items-center gap-2 bg-slate-800 p-1.5 px-3 rounded-lg border border-slate-700 hover:border-slate-600 transition-colors min-w-[200px] justify-between"
+                    >
+                        <div className="flex items-center gap-2">
+                            <Database size={14} className="text-sky-500" />
+                            <div className="flex flex-col items-start">
+                                <span className="text-xs font-bold text-slate-200">{getActiveModelLabel()}</span>
                             </div>
                         </div>
-                    ))}
+                        <ChevronDown size={14} className={`text-slate-500 transition-transform duration-200 ${isModelDropdownOpen ? 'rotate-180' : ''}`} />
+                    </button>
+
+                    {isModelDropdownOpen && (
+                        <div className="absolute top-full left-0 mt-2 w-80 max-h-[60vh] overflow-y-auto bg-slate-900 border border-slate-700 rounded-xl shadow-2xl z-50 animate-in zoom-in-95 duration-100 ring-1 ring-white/5">
+                            <div className="p-1.5 space-y-1">
+                                <div className="px-2 py-1.5 text-[10px] font-bold uppercase text-slate-500 tracking-wider">Available Models</div>
+                                {Object.values(MODELS).map((m) => {
+                                    const isActive = activeModelIds.includes(m.id);
+                                    return (
+                                        <button
+                                            key={m.id}
+                                            onClick={() => onToggleModel(m.id)}
+                                            className={`w-full flex items-start gap-3 p-2.5 rounded-lg transition-all group text-left ${isActive ? 'bg-slate-800/80 ring-1 ring-sky-500/30' : 'hover:bg-slate-800'}`}
+                                        >
+                                            <div className={`mt-0.5 shrink-0 ${isActive ? 'text-sky-400' : 'text-slate-600 group-hover:text-slate-400'}`}>
+                                                {isActive ? <CheckSquare size={16} /> : <SquareIcon size={16} />}
+                                            </div>
+                                            <div className="flex-grow min-w-0">
+                                                <div className="flex items-center justify-between mb-0.5">
+                                                    <span className={`text-sm font-bold ${isActive ? 'text-white' : 'text-slate-300'}`}>{m.name}</span>
+                                                </div>
+                                                <div className="flex items-center gap-2 mb-1.5">
+                                                    <span className="text-[10px] font-mono bg-slate-950 px-1.5 py-0.5 rounded text-slate-400 border border-slate-800">{m.paramSize}</span>
+                                                    {m.tpSize > 1 ? (
+                                                        <span className="text-[10px] bg-purple-500/10 text-purple-400 px-1.5 py-0.5 rounded border border-purple-500/20">TP{m.tpSize}</span>
+                                                    ) : (
+                                                        <span className="text-[10px] bg-emerald-500/10 text-emerald-400 px-1.5 py-0.5 rounded border border-emerald-500/20">Single Node</span>
+                                                    )}
+                                                </div>
+                                                <p className="text-[11px] text-slate-500 leading-tight group-hover:text-slate-400 transition-colors">{m.description}</p>
+                                            </div>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
                 </div>
+
                 <div className="relative group hidden lg:block">
                     <div className={`flex items-center bg-slate-800 p-1 rounded-lg border border-slate-700 ${isDistributed ? 'opacity-50' : ''}`}>
                         <div className="px-2 flex items-center gap-1 text-slate-500"><Workflow size={12} /><span className="text-[10px] font-bold uppercase">LB</span></div>
@@ -63,7 +108,7 @@ const Header: React.FC<Props> = ({ activeModelId, onSwitchModel, lbStrategy, set
                     </div>
                     {isDistributed && (
                         <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-48 p-2 bg-slate-800 text-xs text-slate-300 rounded border border-slate-700 shadow-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none text-center z-50">
-                            Load balancing is handled automatically by Tensor Parallelism for large models.
+                             Distributed/Tensor Parallel models handle their own load distribution.
                         </div>
                     )}
                 </div>

@@ -12,6 +12,36 @@ export const MODELS: Record<string, ModelConfig> = {
     description: 'Small, fast model. Replicated across all servers for high throughput load balancing.',
     costPer1kTokens: 0.0002
   },
+  'gemma-2-27b': {
+    id: 'gemma-2-27b',
+    name: 'Gemma 2 27B',
+    paramSize: '27B',
+    vramPerGpu: 20, // ~54GB total, fits on 1 node
+    tpSize: 1,
+    tokensPerSec: 120,
+    description: 'Efficient Google model. High throughput and reasoning balance on single nodes.',
+    costPer1kTokens: 0.0005
+  },
+  'mistral-large': {
+    id: 'mistral-large',
+    name: 'Mistral Large 2',
+    paramSize: '123B',
+    vramPerGpu: 65, // ~120GB+, fits on 1 node (2x A100) comfortably but high usage
+    tpSize: 1,
+    tokensPerSec: 50,
+    description: 'Flagship model from Mistral AI. Strong reasoning and coding capabilities.',
+    costPer1kTokens: 0.003
+  },
+  'qwen-2.5-72b': {
+    id: 'qwen-2.5-72b',
+    name: 'Qwen 2.5 72B',
+    paramSize: '72B',
+    vramPerGpu: 48, // ~144GB total, fits tightly on 1 node (2x A100)
+    tpSize: 1,
+    tokensPerSec: 60,
+    description: 'Powerful open weights model. maxes out single-node VRAM capacity.',
+    costPer1kTokens: 0.002
+  },
   'llama-405b': {
     id: 'llama-405b',
     name: 'Meta Llama 3.1 405B',
@@ -21,6 +51,16 @@ export const MODELS: Record<string, ModelConfig> = {
     tokensPerSec: 25,
     description: 'Massive frontier model. Requires sharding across the entire cluster (Tensor Parallelism).',
     costPer1kTokens: 0.01
+  },
+  'deepseek-r1': {
+    id: 'deepseek-r1',
+    name: 'DeepSeek R1',
+    paramSize: '671B (MoE)',
+    vramPerGpu: 92, // Very High
+    tpSize: 10, // Full cluster
+    tokensPerSec: 20,
+    description: 'State-of-the-art reasoning model. Massive MoE requiring full cluster distribution.',
+    costPer1kTokens: 0.008
   }
 };
 

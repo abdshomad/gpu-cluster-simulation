@@ -37,17 +37,25 @@ const ClusterVisualization: React.FC<Props> = ({ simulationState, tutorialStep }
           }
       });
 
+      // Check if a large model is active to trigger shake effects
+      const isLargeModelActive = simulationState.activeModelIds.includes('llama-405b') || simulationState.activeModelIds.includes('deepseek-r1');
+
       // Draw Head & Workers
       drawCube(ctx, head.x, head.y, head.z, 25, COLORS.ray, true, "Ray Head");
       wPos.forEach(wp => {
         const active = wp.node.status === NodeStatus.COMPUTING;
-        const shake = active && simulationState.activeModelId === 'llama-405b' ? (Math.random() - 0.5) * 2 : 0;
+        const shake = active && isLargeModelActive ? (Math.random() - 0.5) * 2 : 0;
         drawCube(ctx, wp.x, wp.y, wp.z, 30, '#334155', false, wp.node.name.split(' ')[1], 0.5);
         drawCube(ctx, wp.x - 10 + shake, wp.y + shake, wp.z + 15, 10, COLORS.vllm, active, '', 1);
         drawCube(ctx, wp.x + 10 + shake, wp.y + shake, wp.z + 15, 10, COLORS.vllm, active, '', 1);
         if (wp.node.vramUtil > 5) {
-            const h = (wp.node.vramUtil / 100) * 40; const t = toIso(wp.x, wp.y, wp.z + 35 + h); const b = toIso(wp.x, wp.y, wp.z + 30);
-            ctx.fillStyle = simulationState.activeModelId === 'llama-405b' ? '#fb7185' : '#38bdf8'; ctx.beginPath(); ctx.arc(t.x, t.y, 3, 0, Math.PI*2); ctx.fill();
+            const h = (Math.min(100, wp.node.vramUtil) / 100) * 40; 
+            const t = toIso(wp.x, wp.y, wp.z + 35 + h); 
+            const b = toIso(wp.x, wp.y, wp.z + 30);
+            // Color shift based on VRAM pressure
+            const isHighPressure = wp.node.vramUtil > 90;
+            ctx.fillStyle = isHighPressure ? '#fb7185' : '#38bdf8'; 
+            ctx.beginPath(); ctx.arc(t.x, t.y, 3, 0, Math.PI*2); ctx.fill();
             ctx.strokeStyle = ctx.fillStyle; ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(t.x, t.y); ctx.stroke();
         }
       });

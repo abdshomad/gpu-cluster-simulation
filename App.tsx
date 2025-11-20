@@ -16,13 +16,33 @@ const App: React.FC = () => {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [tutorialStep, setTutorialStep] = useState<number | null>(null);
 
-  const switchModel = (id: string) => setSimulationState(p => ({ ...p, activeModelId: id, requests: [], metricsHistory: [], activityLog: [] }));
-  const activeModel = MODELS[simulationState.activeModelId];
+  const toggleModel = (id: string) => {
+      setSimulationState(prev => {
+          const currentIds = prev.activeModelIds;
+          // Toggle logic: remove if exists, add if not. Prevent empty list.
+          let newIds;
+          if (currentIds.includes(id)) {
+              if (currentIds.length === 1) return prev; // Keep at least one
+              newIds = currentIds.filter(m => m !== id);
+          } else {
+              newIds = [...currentIds, id];
+          }
+          return { ...prev, activeModelIds: newIds, requests: [], metricsHistory: [], activityLog: [] };
+      });
+  };
+
+  const getActiveModelNames = () => {
+      const ids = simulationState.activeModelIds;
+      if (ids.length === 0) return "None";
+      if (ids.length === 1) return MODELS[ids[0]].name;
+      if (ids.length <= 2) return ids.map(id => MODELS[id].name).join(' & ');
+      return `${ids.length} Models Active`;
+  };
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-sky-500/30 pb-20">
       <Header 
-        activeModelId={simulationState.activeModelId} onSwitchModel={switchModel}
+        activeModelIds={simulationState.activeModelIds} onToggleModel={toggleModel}
         lbStrategy={lbStrategy} setLbStrategy={setLbStrategy}
         tutorialStep={tutorialStep} setTutorialStep={setTutorialStep}
         isRunning={isRunning} setIsRunning={setIsRunning}
@@ -37,7 +57,7 @@ const App: React.FC = () => {
                 <div className="flex justify-between items-center mb-3">
                     <h2 className="text-xl font-semibold flex items-center gap-2"><Server size={20} className="text-sky-400" /> Cluster Topology <span className="text-sm text-slate-500 font-normal">(10 Workers)</span></h2>
                     <div className="flex gap-3 text-xs">
-                        <div className="flex flex-col items-end"><span className="text-slate-500 uppercase">Active Model</span><span className="font-bold text-sky-400">{activeModel.name}</span></div>
+                        <div className="flex flex-col items-end"><span className="text-slate-500 uppercase">Active Models</span><span className="font-bold text-sky-400">{getActiveModelNames()}</span></div>
                         <div className="flex flex-col items-end"><span className="text-slate-500 uppercase">Est. Cost</span><span className="font-bold text-emerald-400">${simulationState.metricsHistory.slice(-1)[0]?.estimatedCostPerHour.toFixed(2) || '0.00'}/hr</span></div>
                     </div>
                 </div>

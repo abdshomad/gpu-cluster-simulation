@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Zap, MessageCircle } from 'lucide-react';
 import { askTutor } from '../services/geminiService';
@@ -17,8 +18,11 @@ const ChatWidget: React.FC<Props> = ({ simulationState }) => {
   const handleSend = async () => {
     if (!input.trim()) return;
     const msg = input; setInput(""); setHistory(p => [...p, { role: 'user', text: msg }]); setLoading(true);
-    // Mock context for tutor
-    const context = `Model: ${simulationState.activeModelId}. Throughput: ${simulationState.metricsHistory.slice(-1)[0]?.totalThroughput || 0}.`;
+    
+    // Mock context for tutor with multi-model support
+    const activeModels = simulationState.activeModelIds.map(id => MODELS[id]?.name).join(', ');
+    const context = `Active Models: ${activeModels}. Throughput: ${simulationState.metricsHistory.slice(-1)[0]?.totalThroughput || 0}.`;
+    
     const answer = await askTutor(msg, context);
     setHistory(p => [...p, { role: 'ai', text: answer }]); setLoading(false);
   };

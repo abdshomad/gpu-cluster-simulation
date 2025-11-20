@@ -32,6 +32,7 @@ export interface ClusterNode {
 
 export interface RequestPacket {
   id: string;
+  modelId: string;
   progress: number; // 0-100
   totalTokens: number;
   parallelShards: number; // How many GPUs it is split across
@@ -100,7 +101,7 @@ export type SimulationState = {
   requests: RequestPacket[];
   metricsHistory: MetricPoint[];
   systemTime: number;
-  activeModelId: string;
+  activeModelIds: string[];
   virtualUsers: VirtualUser[];
   activityLog: LogEntry[];
 };
