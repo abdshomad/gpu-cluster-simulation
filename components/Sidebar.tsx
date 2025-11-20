@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Terminal, Cpu, Server, CreditCard } from 'lucide-react';
+import { Terminal, Cpu, Server, CreditCard, Database } from 'lucide-react';
 import { SimulationState, NodeType, NodeStatus, UserState } from '../types';
 
 interface Props {
@@ -44,27 +44,42 @@ const Sidebar: React.FC<Props> = ({ state, selectedNodeId, setSelectedNodeId }) 
                     {tab === 'nodes' ? (
                         <div className="space-y-2">
                             {state.nodes.map(node => (
-                                <div key={node.id} onClick={() => setSelectedNodeId(node.id)} className={`p-2 rounded-lg border cursor-pointer transition-all ${selectedNodeId === node.id ? 'bg-slate-800 border-sky-500/50 ring-1 ring-sky-500/20' : 'bg-slate-900/50 border-slate-800 hover:border-slate-700'}`}>
-                                    <div className="flex justify-between items-center mb-1">
+                                <div key={node.id} onClick={() => setSelectedNodeId(node.id)} className={`p-3 rounded-xl border cursor-pointer transition-all ${selectedNodeId === node.id ? 'bg-slate-800 border-sky-500/50 ring-1 ring-sky-500/20' : 'bg-slate-900/50 border-slate-800 hover:border-slate-700'}`}>
+                                    <div className="flex justify-between items-center mb-2">
                                         <div className="flex items-center gap-2"><div className={`w-1.5 h-1.5 rounded-full ${node.status === NodeStatus.COMPUTING ? 'bg-green-400' : 'bg-slate-600'}`}></div><span className="font-medium text-xs text-slate-300">{node.name}</span></div>
                                         <span className="text-[10px] font-mono text-slate-500">{node.type === NodeType.HEAD ? 'HEAD' : 'WORKER'}</span>
                                     </div>
                                     {node.type === NodeType.WORKER && (
-                                        <div className="mt-2">
-                                            <div className="text-[9px] font-mono text-slate-500 mb-2">Capacity: 2x A100 • {node.totalVram}GB VRAM</div>
-                                            <div className="grid grid-cols-2 gap-3">
-                                                {[{ l: 'GPU', v: node.gpuUtil }, { l: 'VRAM', v: node.vramUtil }].map((m, i) => (
-                                                    <div key={m.l}>
-                                                        <div className="flex justify-between text-[10px] mb-1">
-                                                            <span className="font-bold text-slate-500">{m.l}</span>
-                                                            <div className="flex gap-1">
-                                                                {m.l === 'VRAM' && <span className="text-slate-600 font-mono mr-1">{((m.v / 100) * node.totalVram).toFixed(0)}/{node.totalVram}G</span>}
-                                                                <span className={`font-mono ${m.v > 90 ? 'text-red-400' : 'text-sky-400'}`}>{m.v.toFixed(0)}%</span>
-                                                            </div>
-                                                        </div>
-                                                        <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden"><div className={`h-full transition-all duration-300 ${m.v > 90 ? 'bg-red-500' : 'bg-sky-500'}`} style={{ width: `${m.v}%` }}></div></div>
+                                        <div className="space-y-3 mt-1">
+                                            {/* GPU Bar */}
+                                            <div>
+                                                <div className="flex justify-between text-[10px] mb-1.5">
+                                                    <span className="font-bold text-slate-400 flex items-center gap-1.5"><Cpu size={12} /> GPU Load</span>
+                                                    <span className="font-mono font-bold text-sky-400">{node.gpuUtil.toFixed(0)}%</span>
+                                                </div>
+                                                <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden border border-slate-700/50">
+                                                    <div 
+                                                        className="h-full bg-sky-500 shadow-[0_0_8px_rgba(14,165,233,0.4)] transition-all duration-500 ease-out" 
+                                                        style={{ width: `${node.gpuUtil}%` }}
+                                                    ></div>
+                                                </div>
+                                            </div>
+
+                                            {/* VRAM Bar */}
+                                            <div>
+                                                <div className="flex justify-between text-[10px] mb-1.5">
+                                                    <span className="font-bold text-slate-400 flex items-center gap-1.5"><Database size={12} /> VRAM</span>
+                                                    <div className="flex items-baseline gap-1">
+                                                        <span className="text-slate-500 font-mono text-[9px]">{((node.vramUtil / 100) * node.totalVram).toFixed(0)}/{node.totalVram}GB</span>
+                                                        <span className="font-mono font-bold text-rose-400">{node.vramUtil.toFixed(0)}%</span>
                                                     </div>
-                                                ))}
+                                                </div>
+                                                <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden border border-slate-700/50">
+                                                    <div 
+                                                        className="h-full bg-rose-500 shadow-[0_0_8px_rgba(225,29,72,0.4)] transition-all duration-500 ease-out" 
+                                                        style={{ width: `${node.vramUtil}%` }}
+                                                    ></div>
+                                                </div>
                                             </div>
                                         </div>
                                     )}
