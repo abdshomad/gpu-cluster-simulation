@@ -1,5 +1,4 @@
 
-
 import React from 'react';
 import { LineChart, Line, AreaChart, Area, CartesianGrid, YAxis, Tooltip, ReferenceLine } from 'recharts';
 import { MetricPoint } from '../types';
@@ -34,7 +33,7 @@ const MetricsDashboard: React.FC<Props> = ({ data }) => {
         <Line type="stepAfter" dataKey="queueDepth" stroke="#f43f5e" strokeWidth={2} dot={false} isAnimationActive={false} /></LineChart>
       </MetricCard>
 
-      <MetricCard title="Network Bandwidth (GB/s)" colorClass="text-indigo-400" colSpan="md:col-span-2">
+      <MetricCard title="Inter-Node Data Transfer (GB/s)" colorClass="text-indigo-400" colSpan="md:col-span-2">
         <AreaChart data={recent}><CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} /><YAxis hide domain={[0, 'auto']} /><Tooltip content={<CustomTooltip />} cursor={{stroke: '#475569'}} />
         <Area type="monotone" dataKey="totalBandwidth" stroke="#818cf8" strokeWidth={2} fill="#818cf840" isAnimationActive={false} />
         </AreaChart>

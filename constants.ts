@@ -1,5 +1,4 @@
 
-
 import { ClusterNode, NodeType, NodeStatus, ModelConfig } from './types';
 
 export const MODELS: Record<string, ModelConfig> = {
@@ -184,7 +183,7 @@ export const TUTORIAL_STEPS = [
   {
     id: 2,
     title: '3. Parallelism Strategies',
-    content: 'Observe the particle flow. For TinyLlama, requests go to single servers (Data Parallelism). For Llama 405B, every request splits into shards hitting ALL servers simultaneously (Tensor Parallelism).',
+    content: 'Observe the particle flow. For TinyLlama, requests go to single servers (Data Parallelism). For Llama 405B, shards hit ALL servers simultaneously, triggering massive inter-node data transfer (AllReduce) visible as mesh links between servers.',
     targetId: 'cluster-view'
   },
   {

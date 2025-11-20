@@ -1,7 +1,7 @@
 
 import React, { useRef, useEffect } from 'react';
 import { SimulationState, NodeType, NodeStatus } from '../types';
-import { COLORS } from '../constants';
+import { COLORS, MODELS } from '../constants';
 import { drawGrid, drawCube, drawPacket, toIso } from '../utils/canvasDrawing';
 
 interface Props { simulationState: SimulationState; tutorialStep: number | null; }
@@ -29,7 +29,7 @@ const ClusterVisualization: React.FC<Props> = ({ simulationState, tutorialStep }
       const head = { x: 0, y: -250, z: 100 };
       const wPos = workers.map((w, i) => ({ id: w.id, x: ((i % 5) - 2) * 90, y: (Math.floor(i / 5) - 0.5) * 135, z: 0, node: w }));
 
-      // Connections
+      // Connections (Head -> Worker)
       wPos.forEach(wp => {
           if (wp.node.status === NodeStatus.COMPUTING) {
              const hIso = toIso(head.x, head.y, head.z); const wIso = toIso(wp.x, wp.y, wp.z + 20);
@@ -38,7 +38,45 @@ const ClusterVisualization: React.FC<Props> = ({ simulationState, tutorialStep }
       });
 
       // Check if a large model is active to trigger shake effects
-      const isLargeModelActive = simulationState.activeModelIds.includes('llama-405b') || simulationState.activeModelIds.includes('deepseek-r1');
+      const activeModels = simulationState.activeModelIds;
+      const isLargeModelActive = activeModels.includes('llama-405b') || activeModels.includes('deepseek-r1');
+      
+      // Inter-Node Data Transfer Visualization (AllReduce Simulation)
+      // If any active model has TP > 1, visualize the heavy bandwidth between nodes
+      const isDistributed = activeModels.some(id => MODELS[id] && MODELS[id].tpSize > 1);
+      
+      if (isDistributed) {
+        ctx.lineWidth = 2;
+        // Animate the line dash to show flow
+        const time = Date.now() / 50;
+        ctx.setLineDash([4, 4]);
+        ctx.lineDashOffset = -time;
+        
+        wPos.forEach((wp, i) => {
+            if (wp.node.status !== NodeStatus.COMPUTING) return;
+            
+            // Connect to neighbor to form a mesh/ring
+            if (i < wPos.length - 1) {
+                const next = wPos[i+1];
+                if (next.node.status === NodeStatus.COMPUTING) {
+                    // Scale opacity by network utilization
+                    const util = (wp.node.netUtil + next.node.netUtil) / 200; // 0-1
+                    ctx.strokeStyle = '#818cf8'; // Indigo
+                    ctx.globalAlpha = Math.min(0.8, util + 0.2);
+                    
+                    const p1 = toIso(wp.x, wp.y, wp.z + 15);
+                    const p2 = toIso(next.x, next.y, next.z + 15);
+                    
+                    ctx.beginPath(); 
+                    ctx.moveTo(p1.x, p1.y); 
+                    ctx.lineTo(p2.x, p2.y); 
+                    ctx.stroke();
+                }
+            }
+        });
+        ctx.setLineDash([]);
+        ctx.globalAlpha = 1.0;
+      }
 
       // Draw Head & Workers
       drawCube(ctx, head.x, head.y, head.z, 25, COLORS.ray, true, "Ray Head");
@@ -77,6 +115,14 @@ const ClusterVisualization: React.FC<Props> = ({ simulationState, tutorialStep }
     <div className="relative w-full h-[450px] bg-slate-900 rounded-xl overflow-hidden border border-slate-700 shadow-2xl">
         <canvas ref={canvasRef} className="w-full h-full block" />
         <div className="absolute top-4 left-4 pointer-events-none text-xs text-slate-400 font-mono">CLUSTER VIEW</div>
+        <div className="absolute bottom-4 right-4 pointer-events-none flex flex-col items-end gap-1">
+             <div className="flex items-center gap-2 text-[10px] text-slate-400 bg-slate-900/80 px-2 py-1 rounded border border-slate-800">
+                 <span className="w-2 h-2 rounded-full bg-sky-600"></span> Ray Control
+             </div>
+             <div className="flex items-center gap-2 text-[10px] text-slate-400 bg-slate-900/80 px-2 py-1 rounded border border-slate-800">
+                 <span className="w-2 h-2 rounded-full bg-[#818cf8]"></span> Inter-Node Data
+             </div>
+        </div>
     </div>
   );
 };
