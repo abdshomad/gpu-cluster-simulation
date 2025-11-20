@@ -22,6 +22,36 @@ export const MODELS: Record<string, ModelConfig> = {
     description: 'Efficient Google model. High throughput and reasoning balance on single nodes.',
     costPer1kTokens: 0.0005
   },
+  'llama-3-70b': {
+    id: 'llama-3-70b',
+    name: 'Meta Llama 3 70B',
+    paramSize: '70B',
+    vramPerGpu: 45, // ~75GB, comfortably fits on 1 node
+    tpSize: 1,
+    tokensPerSec: 75,
+    description: 'The open-weight standard. Excellent balance of performance and cost on single nodes.',
+    costPer1kTokens: 0.0007
+  },
+  'qwen-2.5-72b': {
+    id: 'qwen-2.5-72b',
+    name: 'Qwen 2.5 72B',
+    paramSize: '72B',
+    vramPerGpu: 48, // ~144GB total, fits tightly on 1 node (2x A100)
+    tpSize: 1,
+    tokensPerSec: 60,
+    description: 'Powerful open weights model. Maxes out single-node VRAM capacity.',
+    costPer1kTokens: 0.002
+  },
+  'command-r-plus': {
+    id: 'command-r-plus',
+    name: 'Command R+',
+    paramSize: '104B',
+    vramPerGpu: 60, // Large, heavy usage on single node
+    tpSize: 1,
+    tokensPerSec: 45,
+    description: 'RAG-optimized powerhouse. Requires significant VRAM headroom.',
+    costPer1kTokens: 0.001
+  },
   'mistral-large': {
     id: 'mistral-large',
     name: 'Mistral Large 2',
@@ -32,15 +62,15 @@ export const MODELS: Record<string, ModelConfig> = {
     description: 'Flagship model from Mistral AI. Strong reasoning and coding capabilities.',
     costPer1kTokens: 0.003
   },
-  'qwen-2.5-72b': {
-    id: 'qwen-2.5-72b',
-    name: 'Qwen 2.5 72B',
-    paramSize: '72B',
-    vramPerGpu: 48, // ~144GB total, fits tightly on 1 node (2x A100)
+  'mixtral-8x22b': {
+    id: 'mixtral-8x22b',
+    name: 'Mixtral 8x22B',
+    paramSize: '141B (MoE)',
+    vramPerGpu: 80, // Very high, pushing single node limits
     tpSize: 1,
-    tokensPerSec: 60,
-    description: 'Powerful open weights model. maxes out single-node VRAM capacity.',
-    costPer1kTokens: 0.002
+    tokensPerSec: 40,
+    description: 'Massive MoE model. Pushes the absolute limits of a single 2x A100 node.',
+    costPer1kTokens: 0.0012
   },
   'llama-405b': {
     id: 'llama-405b',

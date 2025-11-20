@@ -41,29 +41,29 @@ const Header: React.FC<Props> = ({ activeModelIds, onToggleModel, lbStrategy, se
     };
 
     return (
-        <header className="h-16 border-b border-slate-800 bg-slate-900/50 backdrop-blur-md flex items-center justify-between px-6 fixed w-full top-0 z-50">
-            <div className="flex items-center gap-3">
+        <header className="h-16 border-b border-slate-800 bg-slate-900/50 backdrop-blur-md flex items-center justify-between px-4 md:px-6 fixed w-full top-0 z-50">
+            <div className="flex items-center gap-3 shrink-0">
                 <div className="p-2 bg-gradient-to-br from-ray to-vllm rounded-lg shadow-lg shadow-sky-900/20"><Activity size={20} className="text-white" /></div>
-                <h1 className="font-bold text-lg tracking-tight">Ray & vLLM <span className="font-light text-slate-400">Sim</span></h1>
+                <h1 className="font-bold text-lg tracking-tight hidden sm:block">Ray & vLLM <span className="font-light text-slate-400">Sim</span></h1>
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 md:gap-4 flex-1 justify-end min-w-0">
                 {/* Model Selector Dropdown */}
-                <div id="model-selector" className="relative hidden md:block" ref={dropdownRef}>
+                <div id="model-selector" className="relative shrink-0" ref={dropdownRef}>
                     <button 
                         onClick={() => setIsModelDropdownOpen(!isModelDropdownOpen)}
-                        className="flex items-center gap-2 bg-slate-800 p-1.5 px-3 rounded-lg border border-slate-700 hover:border-slate-600 transition-colors min-w-[200px] justify-between group"
+                        className="flex items-center gap-2 bg-slate-800 p-1.5 px-3 rounded-lg border border-slate-700 hover:border-slate-600 transition-colors min-w-[140px] md:min-w-[200px] justify-between group"
                     >
-                        <div className="flex items-center gap-2">
-                            <Database size={14} className="text-sky-500 group-hover:scale-110 transition-transform" />
-                            <div className="flex flex-col items-start">
-                                <span className="text-xs font-bold text-slate-200">{getActiveModelLabel()}</span>
+                        <div className="flex items-center gap-2 min-w-0">
+                            <Database size={14} className="text-sky-500 group-hover:scale-110 transition-transform shrink-0" />
+                            <div className="flex flex-col items-start min-w-0">
+                                <span className="text-xs font-bold text-slate-200 truncate max-w-[90px] md:max-w-[140px]">{getActiveModelLabel()}</span>
                             </div>
                         </div>
-                        <ChevronDown size={14} className={`text-slate-500 transition-transform duration-200 ${isModelDropdownOpen ? 'rotate-180' : ''}`} />
+                        <ChevronDown size={14} className={`text-slate-500 transition-transform duration-200 shrink-0 ${isModelDropdownOpen ? 'rotate-180' : ''}`} />
                     </button>
 
                     {isModelDropdownOpen && (
-                        <div className="absolute top-full left-0 mt-2 w-80 max-h-[60vh] overflow-y-auto bg-slate-900 border border-slate-700 rounded-xl shadow-2xl z-50 animate-in zoom-in-95 duration-100 ring-1 ring-white/5">
+                        <div className="absolute top-full right-0 md:left-0 mt-2 w-80 max-h-[60vh] overflow-y-auto bg-slate-900 border border-slate-700 rounded-xl shadow-2xl z-50 animate-in zoom-in-95 duration-100 ring-1 ring-white/5">
                             <div className="p-1.5 space-y-1">
                                 <div className="px-2 py-1.5 text-[10px] font-bold uppercase text-slate-500 tracking-wider">Available Models</div>
                                 {Object.values(MODELS).map((m) => {
@@ -144,17 +144,17 @@ const Header: React.FC<Props> = ({ activeModelIds, onToggleModel, lbStrategy, se
 
                 <div className="w-px h-4 bg-slate-700 hidden md:block"></div>
                 
-                <button onClick={() => setTutorialStep(tutorialStep === null ? 0 : null)} className={`flex items-center gap-2 px-4 py-1.5 rounded-md font-medium text-sm border transition-all ${tutorialStep !== null ? 'bg-emerald-600 border-emerald-500 text-white shadow-[0_0_15px_rgba(16,185,129,0.3)]' : 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700'}`}>
+                <button onClick={() => setTutorialStep(tutorialStep === null ? 0 : null)} className={`hidden md:flex items-center gap-2 px-4 py-1.5 rounded-md font-medium text-sm border transition-all ${tutorialStep !== null ? 'bg-emerald-600 border-emerald-500 text-white shadow-[0_0_15px_rgba(16,185,129,0.3)]' : 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700'}`}>
                     <BookOpen size={14} /> {tutorialStep !== null ? 'Exit' : 'Tutorial'}
                 </button>
                 
-                <div className="flex items-center bg-slate-800 rounded-lg p-1 border border-slate-700">
-                    <button onClick={() => setIsRunning(!isRunning)} className={`flex items-center gap-2 px-4 py-1.5 rounded-md font-medium text-sm transition-all ${isRunning ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30' : 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30'}`}>
+                <div className="flex items-center bg-slate-800 rounded-lg p-1 border border-slate-700 shrink-0">
+                    <button onClick={() => setIsRunning(!isRunning)} className={`flex items-center gap-2 px-3 md:px-4 py-1.5 rounded-md font-medium text-sm transition-all ${isRunning ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30' : 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30'}`}>
                         {isRunning ? <Square size={14} fill="currentColor" /> : <Play size={14} fill="currentColor" />} <span className="hidden sm:inline">{isRunning ? 'Pause' : 'Simulate'}</span>
                     </button>
                     <div className="w-px h-4 bg-slate-700 mx-2"></div>
                     <div className="flex items-center gap-2 px-2">
-                        <Users size={14} className="text-slate-400" /><input type="range" min="0" max="50" step="5" value={targetUserCount} onChange={(e) => setTargetUserCount(parseInt(e.target.value))} disabled={tutorialStep !== null} className="w-24 h-1 bg-slate-600 rounded-lg appearance-none cursor-pointer accent-sky-500" />
+                        <Users size={14} className="text-slate-400" /><input type="range" min="0" max="50" step="5" value={targetUserCount} onChange={(e) => setTargetUserCount(parseInt(e.target.value))} disabled={tutorialStep !== null} className="w-16 md:w-24 h-1 bg-slate-600 rounded-lg appearance-none cursor-pointer accent-sky-500" />
                         <span className="text-xs font-mono w-6 text-right text-sky-400">{targetUserCount}</span>
                     </div>
                 </div>
