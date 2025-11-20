@@ -1,3 +1,5 @@
+
+
 import React, { useState } from 'react';
 import { Server, Activity } from 'lucide-react';
 import { MODELS } from './constants';
@@ -17,7 +19,8 @@ const App: React.FC = () => {
     isRunning, setIsRunning, 
     targetUserCount, setTargetUserCount, 
     lbStrategy, setLbStrategy,
-    networkSpeed, setNetworkSpeed
+    networkSpeed, setNetworkSpeed,
+    placementStrategy, setPlacementStrategy
   } = useSimulation();
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [tutorialStep, setTutorialStep] = useState<number | null>(null);
@@ -68,6 +71,7 @@ const App: React.FC = () => {
         activeModelIds={simulationState.activeModelIds} onToggleModel={toggleModel}
         lbStrategy={lbStrategy} setLbStrategy={setLbStrategy}
         networkSpeed={networkSpeed} setNetworkSpeed={setNetworkSpeed}
+        placementStrategy={placementStrategy} setPlacementStrategy={setPlacementStrategy}
         tutorialStep={tutorialStep} setTutorialStep={setTutorialStep}
         isRunning={isRunning} setIsRunning={setIsRunning}
         targetUserCount={targetUserCount} setTargetUserCount={setTargetUserCount}
@@ -95,8 +99,10 @@ const App: React.FC = () => {
                 <ClusterVisualization simulationState={simulationState} tutorialStep={tutorialStep} networkSpeed={networkSpeed} />
             </section>
             <section id="metrics-dashboard">
-                <div className="flex justify-between items-center mb-3"><h2 className="text-xl font-semibold flex items-center gap-2"><Activity size={20} className="text-emerald-400" /> Prometheus Metrics</h2></div>
-                <MetricsDashboard data={simulationState.metricsHistory} />
+                <MetricsDashboard 
+                  data={simulationState.metricsHistory} 
+                  users={simulationState.virtualUsers}
+                />
             </section>
         </div>
         <Sidebar state={simulationState} selectedNodeId={selectedNodeId} setSelectedNodeId={setSelectedNodeId} />

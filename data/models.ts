@@ -1,3 +1,4 @@
+
 import { ModelConfig } from '../types';
 
 export const MODELS: Record<string, ModelConfig> = {
@@ -75,7 +76,7 @@ export const MODELS: Record<string, ModelConfig> = {
     id: 'llama-405b',
     name: 'Meta Llama 3.1 405B',
     paramSize: '405B',
-    vramPerGpu: 85,
+    vramPerGpu: 55, // Approx 55% of 160GB * 10 nodes = 880GB (fits 810GB weights + KV)
     tpSize: 10,
     tokensPerSec: 25,
     description: 'Massive frontier model. Requires sharding across the entire cluster (Tensor Parallelism).',
@@ -85,7 +86,7 @@ export const MODELS: Record<string, ModelConfig> = {
     id: 'deepseek-r1',
     name: 'DeepSeek R1',
     paramSize: '671B (MoE)',
-    vramPerGpu: 92,
+    vramPerGpu: 65,
     tpSize: 10,
     tokensPerSec: 20,
     description: 'State-of-the-art reasoning model. Massive MoE requiring full cluster distribution.',

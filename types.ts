@@ -18,10 +18,22 @@ export enum LoadBalancingStrategy {
   LEAST_CONNECTIONS = 'LEAST_CONNECTIONS'
 }
 
+export enum PlacementStrategy {
+  PACK = 'PACK',     // Fill Rack 1 first (Low Latency)
+  SPREAD = 'SPREAD',  // Distribute across Racks (High Availability)
+  STRICT_PACK = 'STRICT_PACK' // Fail if Rack 1 full/offline
+}
+
 export enum NetworkSpeed {
   ETH_10G = 'ETH_10G',
   ETH_100G = 'ETH_100G',
   IB_400G = 'IB_400G'
+}
+
+export enum RequestStage {
+  TRANSFER = 'TRANSFER', // Network travel
+  PREFILL = 'PREFILL',   // Processing prompt (TTFT)
+  DECODE = 'DECODE'      // Generating tokens
 }
 
 export interface ClusterNode {
@@ -35,22 +47,29 @@ export interface ClusterNode {
   status: NodeStatus;
   activeTokens: number; // Currently processing tokens
   totalVram: number; // Total VRAM in GB
+  rackId?: string; // 'rack-1' or 'rack-2'
 }
 
 export interface RequestPacket {
   id: string;
   modelId: string;
-  progress: number; // 0-100
-  totalTokens: number;
+  stage: RequestStage;
+  progress: number; // 0-100 (Relative to current stage)
+  promptTokens: number; // Input size
+  outputTokens: number; // Output size
   parallelShards: number; // How many GPUs it is split across
   color: string;
   targetNodeId?: string; // For single-device models
+  targetNodeIds?: string[]; // For distributed TP models (list of nodes in the ring)
+  startTime: number;
+  ttft?: number; // Time To First Token (ms)
 }
 
 export interface MetricPoint {
   timestamp: number;
-  totalThroughput: number; // tokens/sec
-  avgLatency: number; // ms
+  totalThroughput: number; // tokens/sec (Decode speed)
+  avgLatency: number; // ms (Total Request Latency)
+  avgTtft: number; // ms (Time To First Token)
   clusterUtilization: number; // %
   totalBandwidth: number; // GB/s (Network/Interconnect - Inter-node)
   totalNvLinkBandwidth: number; // GB/s (NVLink - Intra-node)
@@ -73,7 +92,7 @@ export interface ModelConfig {
   paramSize: string;
   vramPerGpu: number; // Approximate % usage on A100
   tpSize: number; // Tensor Parallel size (1 = single gpu, >1 = distributed)
-  tokensPerSec: number; // Base speed factor
+  tokensPerSec: number; // Base speed factor (Decode)
   description: string;
   costPer1kTokens: number; // Est cost
 }
@@ -94,6 +113,8 @@ export interface VirtualUser {
   color: string;
   avatar: string; // Emoji
   totalCost: number; // Accumulated cost in $
+  totalTokens: number; // Accumulated tokens used
+  requestCount: number; // Total requests made
 }
 
 export interface LogEntry {
@@ -106,6 +127,7 @@ export interface LogEntry {
   type: 'PROMPT' | 'RESPONSE';
   text: string;
   latency?: number;
+  ttft?: number;
 }
 
 export type SimulationState = {

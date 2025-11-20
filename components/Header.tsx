@@ -1,9 +1,7 @@
-
-
 import React, { useState, useRef, useEffect } from 'react';
-import { Activity, Database, Workflow, BookOpen, Play, Square, Users, ChevronDown, CheckSquare, Square as SquareIcon, Lock, Network } from 'lucide-react';
+import { Activity, Database, Workflow, BookOpen, Play, Square, Users, ChevronDown, CheckSquare, Square as SquareIcon, Lock, Network, Layers } from 'lucide-react';
 import { MODELS, NETWORK_CAPACITY } from '../constants';
-import { LoadBalancingStrategy, NetworkSpeed } from '../types';
+import { LoadBalancingStrategy, NetworkSpeed, PlacementStrategy } from '../types';
 
 interface Props {
     activeModelIds: string[];
@@ -12,6 +10,8 @@ interface Props {
     setLbStrategy: (s: LoadBalancingStrategy) => void;
     networkSpeed: NetworkSpeed;
     setNetworkSpeed: (s: NetworkSpeed) => void;
+    placementStrategy?: PlacementStrategy;
+    setPlacementStrategy?: (s: PlacementStrategy) => void;
     tutorialStep: number | null;
     setTutorialStep: (s: number | null) => void;
     isRunning: boolean;
@@ -24,6 +24,7 @@ const Header: React.FC<Props> = ({
     activeModelIds, onToggleModel, 
     lbStrategy, setLbStrategy, 
     networkSpeed, setNetworkSpeed,
+    placementStrategy, setPlacementStrategy,
     tutorialStep, setTutorialStep, 
     isRunning, setIsRunning, 
     targetUserCount, setTargetUserCount 
@@ -110,7 +111,7 @@ const Header: React.FC<Props> = ({
                 </div>
 
                 {/* Network Speed Selector */}
-                <div className="hidden lg:flex items-center p-1 rounded-lg border bg-slate-800 border-slate-700 gap-2">
+                <div className="hidden xl:flex items-center p-1 rounded-lg border bg-slate-800 border-slate-700 gap-2">
                      <div className="px-2 flex items-center gap-1 text-slate-500">
                         <Network size={12} />
                         <span className="text-[10px] font-bold uppercase">Net</span>
@@ -125,6 +126,25 @@ const Header: React.FC<Props> = ({
                         ))}
                     </select>
                 </div>
+
+                {/* Placement Strategy Selector */}
+                {setPlacementStrategy && (
+                    <div className="hidden lg:flex items-center p-1 rounded-lg border bg-slate-800 border-slate-700 gap-2">
+                        <div className="px-2 flex items-center gap-1 text-slate-500">
+                            <Layers size={12} />
+                            <span className="text-[10px] font-bold uppercase">Place</span>
+                        </div>
+                        <select 
+                            value={placementStrategy} 
+                            onChange={(e) => setPlacementStrategy(e.target.value as any)} 
+                            className="bg-transparent text-xs font-medium text-slate-300 focus:outline-none cursor-pointer py-1 pr-2"
+                        >
+                            <option value={PlacementStrategy.PACK}>PACK (Latency)</option>
+                            <option value={PlacementStrategy.SPREAD}>SPREAD (HA)</option>
+                            <option value={PlacementStrategy.STRICT_PACK}>STRICT PACK</option>
+                        </select>
+                    </div>
+                )}
 
                 {/* Load Balancing Strategy Selector */}
                 <div className="relative group hidden xl:block">

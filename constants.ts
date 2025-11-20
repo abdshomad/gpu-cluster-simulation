@@ -11,6 +11,7 @@ export const NETWORK_CAPACITY: Record<NetworkSpeed, { name: string, bandwidth: n
 };
 
 // Generate 10 workers (Servers)
+// Assign Rack 1 to first 5, Rack 2 to next 5
 const workers: ClusterNode[] = Array.from({ length: 10 }, (_, i) => ({
   id: `server-${i + 1}`,
   type: NodeType.WORKER,
@@ -21,7 +22,8 @@ const workers: ClusterNode[] = Array.from({ length: 10 }, (_, i) => ({
   temp: 30,
   status: NodeStatus.IDLE,
   activeTokens: 0,
-  totalVram: 160 // 2x 80GB A100
+  totalVram: 160, // 2x 80GB A100
+  rackId: i < 5 ? 'rack-1' : 'rack-2'
 }));
 
 export const INITIAL_NODES: ClusterNode[] = [

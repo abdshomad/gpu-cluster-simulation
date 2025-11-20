@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { SimulationState, LoadBalancingStrategy, NetworkSpeed } from '../types';
+import { SimulationState, LoadBalancingStrategy, NetworkSpeed, PlacementStrategy } from '../types';
 import { INITIAL_NODES } from '../constants';
 import { calculateNextTick, createVirtualUser } from '../utils/simulationEngine';
 
@@ -12,6 +12,7 @@ export const useSimulation = () => {
   const [targetUserCount, setTargetUserCount] = useState(5);
   const [lbStrategy, setLbStrategy] = useState<LoadBalancingStrategy>(LoadBalancingStrategy.RANDOM);
   const [networkSpeed, setNetworkSpeed] = useState<NetworkSpeed>(NetworkSpeed.IB_400G);
+  const [placementStrategy, setPlacementStrategy] = useState<PlacementStrategy>(PlacementStrategy.PACK);
   
   const stateRef = useRef(simulationState);
   stateRef.current = simulationState;
@@ -23,11 +24,12 @@ export const useSimulation = () => {
         targetUserCount,
         lbStrategy,
         networkSpeed,
+        placementStrategy,
         rrIndexRef.current
     );
     rrIndexRef.current = result.newRrIndex;
     setSimulationState(result.newState);
-  }, [targetUserCount, lbStrategy, networkSpeed]);
+  }, [targetUserCount, lbStrategy, networkSpeed, placementStrategy]);
 
   useEffect(() => {
     let i: any;
@@ -38,6 +40,6 @@ export const useSimulation = () => {
   return { 
     simulationState, setSimulationState, isRunning, setIsRunning, 
     targetUserCount, setTargetUserCount, lbStrategy, setLbStrategy,
-    networkSpeed, setNetworkSpeed
+    networkSpeed, setNetworkSpeed, placementStrategy, setPlacementStrategy
   };
 };

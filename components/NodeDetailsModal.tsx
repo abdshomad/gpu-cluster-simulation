@@ -1,5 +1,6 @@
+
 import React from 'react';
-import { X, Cpu, Thermometer, Zap, Activity, Server, AlertTriangle, Network, Power } from 'lucide-react';
+import { X, Cpu, Thermometer, Zap, Activity, Server, AlertTriangle, Network, Power, Layers } from 'lucide-react';
 import { ClusterNode, MetricPoint, NodeType, NodeStatus } from '../types';
 import { LineChart, Line, AreaChart, Area, ResponsiveContainer, Tooltip, YAxis, CartesianGrid, ReferenceLine } from 'recharts';
 
@@ -18,6 +19,7 @@ const NodeDetailsModal: React.FC<Props> = ({ node, onClose, metricsHistory, onTo
     vram: m.nodeVramUtil?.[node.id] ?? 0,
     temp: m.nodeTemp?.[node.id] ?? 0,
     net: m.nodeNetUtil?.[node.id] ?? 0,
+    activeTokens: m.nodeActiveTokens?.[node.id] ?? 0
   }));
 
   // Calculate average temperature over the last 20 ticks to determine trend
@@ -146,7 +148,7 @@ const NodeDetailsModal: React.FC<Props> = ({ node, onClose, metricsHistory, onTo
             {isOffline && <div className="absolute inset-0 bg-slate-950/60 z-10 backdrop-blur-[1px]" />}
             
             {/* Stats Grid */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
                 <StatCard title="GPU Util" value={node.gpuUtil.toFixed(1)} unit="%" icon={Cpu} color="#0ea5e9" />
                 <StatCard 
                     title="VRAM Usage" 
@@ -169,6 +171,13 @@ const NodeDetailsModal: React.FC<Props> = ({ node, onClose, metricsHistory, onTo
                     unit="%" 
                     icon={Network} 
                     color="#818cf8" 
+                />
+                 <StatCard 
+                    title="Active Tasks" 
+                    value={node.activeTokens} 
+                    unit="Req" 
+                    icon={Layers} 
+                    color="#10b981" 
                 />
             </div>
 
@@ -208,18 +217,17 @@ const NodeDetailsModal: React.FC<Props> = ({ node, onClose, metricsHistory, onTo
                         </div>
                     </div>
 
-                     {/* Temp Chart */}
-                     <div className={`rounded-xl border p-4 transition-colors duration-300 ${isOverheating ? 'bg-red-950/10 border-red-900/50' : 'bg-slate-950/40 border-slate-800'}`}>
-                        <div className={`text-[10px] font-bold mb-2 uppercase transition-colors ${isOverheating ? 'text-red-400' : 'text-orange-500'}`}>Temperature</div>
-                         <div className="h-32">
+                    {/* Active Tasks Chart */}
+                    <div className="bg-slate-950/40 rounded-xl border border-slate-800 p-4">
+                        <div className="text-[10px] font-bold text-emerald-500 mb-2 uppercase">Active Tasks</div>
+                        <div className="h-32">
                             <ResponsiveContainer width="100%" height="100%">
-                                <LineChart data={nodeHistory}>
-                                    <CartesianGrid strokeDasharray="3 3" stroke={isOverheating ? '#450a0a' : '#1e293b'} vertical={false} />
-                                    <YAxis domain={['auto', 'auto']} hide />
-                                    <ReferenceLine y={80} stroke="#ef4444" strokeDasharray="3 3" label={{ position: 'insideBottomRight', value: 'MAX 80°C', fill: '#ef4444', fontSize: 10 }} />
+                                <AreaChart data={nodeHistory}>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+                                    <YAxis hide />
                                     <Tooltip content={<CustomTooltip />} cursor={{stroke: '#334155'}} />
-                                    <Line type="monotone" dataKey="temp" name="Temp" stroke={isOverheating ? '#ef4444' : '#f97316'} strokeWidth={2} dot={false} isAnimationActive={false} />
-                                </LineChart>
+                                    <Area type="monotone" dataKey="activeTokens" name="Tasks" stroke="#10b981" fill="#10b98120" strokeWidth={2} isAnimationActive={false} />
+                                </AreaChart>
                             </ResponsiveContainer>
                         </div>
                     </div>
