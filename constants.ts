@@ -34,7 +34,8 @@ const workers: ClusterNode[] = Array.from({ length: 10 }, (_, i) => ({
   vramUtil: 0,
   temp: 30,
   status: NodeStatus.IDLE,
-  activeTokens: 0
+  activeTokens: 0,
+  totalVram: 160 // 2x 80GB A100
 }));
 
 export const INITIAL_NODES: ClusterNode[] = [
@@ -46,7 +47,8 @@ export const INITIAL_NODES: ClusterNode[] = [
     vramUtil: 5,
     temp: 45,
     status: NodeStatus.IDLE,
-    activeTokens: 0
+    activeTokens: 0,
+    totalVram: 32 // System RAM fallback
   },
   ...workers
 ];

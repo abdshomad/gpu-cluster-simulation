@@ -1,8 +1,8 @@
 
 import React from 'react';
-import { X, Cpu, Thermometer, Zap, Activity, Server } from 'lucide-react';
+import { X, Cpu, Thermometer, Zap, Activity, Server, AlertTriangle } from 'lucide-react';
 import { ClusterNode, MetricPoint, NodeType } from '../types';
-import { LineChart, Line, ResponsiveContainer, Tooltip, YAxis, CartesianGrid } from 'recharts';
+import { LineChart, Line, ResponsiveContainer, Tooltip, YAxis, CartesianGrid, ReferenceLine } from 'recharts';
 
 interface Props {
   node: ClusterNode;
@@ -19,6 +19,11 @@ const NodeDetailsModal: React.FC<Props> = ({ node, onClose, metricsHistory }) =>
     temp: m.nodeTemp?.[node.id] ?? 0,
     tokens: m.nodeActiveTokens?.[node.id] ?? 0
   }));
+
+  // Calculate average temperature over the last 20 ticks to determine trend
+  const recentHistory = nodeHistory.slice(-20);
+  const avgTemp = recentHistory.reduce((acc, curr) => acc + curr.temp, 0) / (recentHistory.length || 1);
+  const isOverheating = avgTemp > 80;
 
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
@@ -39,26 +44,35 @@ const NodeDetailsModal: React.FC<Props> = ({ node, onClose, metricsHistory }) =>
     return null;
   };
 
-  const StatCard = ({ title, value, unit, icon: Icon, color, subText }: any) => (
-    <div className="bg-slate-950/40 p-3 rounded-xl border border-slate-800 flex items-center gap-3">
-        <div className={`p-2 rounded-lg bg-slate-900 border border-slate-800 shrink-0`} style={{ color }}>
+  const StatCard = ({ title, value, unit, icon: Icon, color, alert }: any) => (
+    <div className={`p-3 rounded-xl border flex items-center gap-3 transition-all duration-300 ${
+        alert 
+        ? 'bg-red-950/30 border-red-500/50 shadow-[0_0_15px_rgba(239,68,68,0.2)]' 
+        : 'bg-slate-950/40 border-slate-800'
+    }`}>
+        <div className={`p-2 rounded-lg border shrink-0 transition-colors duration-300 ${
+            alert ? 'bg-red-500/20 border-red-500/30 text-red-500 animate-pulse' : 'bg-slate-900 border-slate-800'
+        }`} style={!alert ? { color } : {}}>
             <Icon size={18} />
         </div>
         <div>
-            <p className="text-[10px] font-bold uppercase text-slate-500 tracking-wider">{title}</p>
+            <p className={`text-[10px] font-bold uppercase tracking-wider transition-colors duration-300 ${alert ? 'text-red-400' : 'text-slate-500'}`}>{title}</p>
             <div className="flex items-baseline gap-1">
-                <span className="text-lg font-mono font-bold text-slate-200">{value}</span>
-                <span className="text-xs text-slate-500">{unit}</span>
+                <span className={`text-lg font-mono font-bold transition-colors duration-300 ${alert ? 'text-red-200' : 'text-slate-200'}`}>{value}</span>
+                <span className={`text-xs transition-colors duration-300 ${alert ? 'text-red-400' : 'text-slate-500'}`}>{unit}</span>
             </div>
         </div>
     </div>
   );
 
+  // Calculate absolute VRAM usage
+  const vramUsed = ((node.vramUtil / 100) * node.totalVram).toFixed(1);
+
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center px-4 animate-in fade-in duration-200">
       <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm" onClick={onClose} />
       
-      <div className="relative bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden animate-in zoom-in-95 duration-200 scale-100 flex flex-col max-h-[90vh]">
+      <div className={`relative bg-slate-900 border rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden animate-in zoom-in-95 duration-200 scale-100 flex flex-col max-h-[90vh] transition-colors ${isOverheating ? 'border-red-500/30' : 'border-slate-700'}`}>
         
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-slate-800 bg-slate-900/50 shrink-0">
@@ -72,6 +86,11 @@ const NodeDetailsModal: React.FC<Props> = ({ node, onClose, metricsHistory }) =>
                     <span className="text-xs text-slate-500 font-mono">{node.id}</span>
                     <span className={`inline-block w-2 h-2 rounded-full ${node.status === 'COMPUTING' ? 'bg-green-500 animate-pulse' : 'bg-slate-600'}`}></span>
                     <span className="text-[10px] font-bold text-slate-500 uppercase">{node.status}</span>
+                    {node.type === NodeType.WORKER && (
+                        <span className="ml-2 px-1.5 py-0.5 rounded bg-slate-800 text-[10px] text-slate-400 border border-slate-700">
+                            2x A100 • {node.totalVram}GB
+                        </span>
+                    )}
                 </div>
              </div>
           </div>
@@ -80,12 +99,38 @@ const NodeDetailsModal: React.FC<Props> = ({ node, onClose, metricsHistory }) =>
           </button>
         </div>
 
+        {/* Warning Banner */}
+        {isOverheating && (
+            <div className="bg-red-500/10 border-b border-red-500/20 px-4 py-3 flex items-center gap-3 animate-in slide-in-from-top-2">
+                <div className="p-1.5 bg-red-500/20 rounded-full animate-pulse shrink-0">
+                    <AlertTriangle size={16} className="text-red-500" />
+                </div>
+                <div>
+                    <p className="text-sm font-bold text-red-400">Overheating Warning</p>
+                    <p className="text-xs text-red-400/80">Average temperature ({avgTemp.toFixed(1)}°C) has exceeded the safe operating threshold of 80°C for an extended period.</p>
+                </div>
+            </div>
+        )}
+
         <div className="overflow-y-auto p-6 space-y-6">
             {/* Stats Grid */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 <StatCard title="GPU Util" value={node.gpuUtil.toFixed(1)} unit="%" icon={Cpu} color="#0ea5e9" />
-                <StatCard title="VRAM" value={node.vramUtil.toFixed(1)} unit="%" icon={Activity} color="#e11d48" />
-                <StatCard title="Temp" value={node.temp.toFixed(1)} unit="°C" icon={Thermometer} color="#f97316" />
+                <StatCard 
+                    title="VRAM Usage" 
+                    value={`${vramUsed} / ${node.totalVram}`} 
+                    unit="GB" 
+                    icon={Activity} 
+                    color="#e11d48" 
+                />
+                <StatCard 
+                    title="Temp" 
+                    value={node.temp.toFixed(1)} 
+                    unit="°C" 
+                    icon={Thermometer} 
+                    color="#f97316"
+                    alert={isOverheating}
+                />
                 <StatCard title="Active Tokens" value={node.activeTokens} unit="" icon={Zap} color="#10b981" />
             </div>
 
@@ -126,15 +171,16 @@ const NodeDetailsModal: React.FC<Props> = ({ node, onClose, metricsHistory }) =>
                     </div>
 
                      {/* Temp Chart */}
-                     <div className="bg-slate-950/40 rounded-xl border border-slate-800 p-4">
-                        <div className="text-[10px] font-bold text-orange-500 mb-2 uppercase">Temperature</div>
+                     <div className={`rounded-xl border p-4 transition-colors duration-300 ${isOverheating ? 'bg-red-950/10 border-red-900/50' : 'bg-slate-950/40 border-slate-800'}`}>
+                        <div className={`text-[10px] font-bold mb-2 uppercase transition-colors ${isOverheating ? 'text-red-400' : 'text-orange-500'}`}>Temperature</div>
                          <div className="h-32">
                             <ResponsiveContainer width="100%" height="100%">
                                 <LineChart data={nodeHistory}>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+                                    <CartesianGrid strokeDasharray="3 3" stroke={isOverheating ? '#450a0a' : '#1e293b'} vertical={false} />
                                     <YAxis domain={['auto', 'auto']} hide />
+                                    <ReferenceLine y={80} stroke="#ef4444" strokeDasharray="3 3" label={{ position: 'insideBottomRight', value: 'MAX 80°C', fill: '#ef4444', fontSize: 10 }} />
                                     <Tooltip content={<CustomTooltip />} cursor={{stroke: '#334155'}} />
-                                    <Line type="monotone" dataKey="temp" name="Temp" stroke="#f97316" strokeWidth={2} dot={false} isAnimationActive={false} />
+                                    <Line type="monotone" dataKey="temp" name="Temp" stroke={isOverheating ? '#ef4444' : '#f97316'} strokeWidth={2} dot={false} isAnimationActive={false} />
                                 </LineChart>
                             </ResponsiveContainer>
                         </div>

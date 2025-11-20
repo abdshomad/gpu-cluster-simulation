@@ -1,10 +1,9 @@
 import { GoogleGenAI } from "@google/genai";
 
-const apiKey = process.env.API_KEY || '';
-const ai = new GoogleGenAI({ apiKey });
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 export const askTutor = async (question: string, contextStr: string): Promise<string> => {
-  if (!apiKey) return "Gemini API Key is missing. Please configure the environment.";
+  if (!process.env.API_KEY) return "Gemini API Key is missing. Please configure the environment.";
 
   try {
     const response = await ai.models.generateContent({

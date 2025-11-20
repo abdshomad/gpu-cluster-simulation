@@ -27,6 +27,7 @@ export interface ClusterNode {
   temp: number; // Celsius
   status: NodeStatus;
   activeTokens: number; // Currently processing tokens
+  totalVram: number; // Total VRAM in GB
 }
 
 export interface RequestPacket {
