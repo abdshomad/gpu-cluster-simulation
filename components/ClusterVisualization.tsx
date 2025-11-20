@@ -1,9 +1,8 @@
 
-
 import React, { useRef, useEffect } from 'react';
-import { SimulationState, NodeType, NodeStatus, NetworkSpeed } from '../types';
-import { COLORS, MODELS, NETWORK_CAPACITY } from '../constants';
-import { drawGrid, drawCube, drawPacket, toIso } from '../utils/canvasDrawing';
+import { SimulationState, NetworkSpeed } from '../types';
+import { NETWORK_CAPACITY, MODELS } from '../constants';
+import { renderCluster } from '../utils/clusterRenderer';
 
 interface Props { 
     simulationState: SimulationState; 
@@ -16,142 +15,34 @@ const ClusterVisualization: React.FC<Props> = ({ simulationState, tutorialStep, 
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    const ctx = canvas?.getContext('2d');
-    if (!canvas || !ctx) return;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
     let frameId: number;
-
+    
     const render = () => {
-      const { width, height } = canvas.getBoundingClientRect();
-      const dpr = window.devicePixelRatio || 1;
-      if (canvas.width !== width * dpr) { canvas.width = width * dpr; canvas.height = height * dpr; }
-      
-      ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.scale(dpr, dpr); ctx.translate(width / 2, height / 2 + 100);
-
-      drawGrid(ctx, 300, 6);
-      
-      const workers = simulationState.nodes.filter(n => n.type === NodeType.WORKER);
-      const head = { x: 0, y: -250, z: 100 };
-      const wPos = workers.map((w, i) => ({ id: w.id, x: ((i % 5) - 2) * 90, y: (Math.floor(i / 5) - 0.5) * 135, z: 0, node: w }));
-
-      // Connections (Head -> Worker)
-      wPos.forEach(wp => {
-          if (wp.node.status === NodeStatus.COMPUTING) {
-             const hIso = toIso(head.x, head.y, head.z); const wIso = toIso(wp.x, wp.y, wp.z + 20);
-             ctx.strokeStyle = COLORS.ray; ctx.globalAlpha = 0.3; ctx.beginPath(); ctx.moveTo(hIso.x, hIso.y); ctx.lineTo(wIso.x, wIso.y); ctx.stroke(); ctx.globalAlpha = 1;
-          }
-      });
-
-      // Check if a large model is active to trigger shake effects and data transfer viz
-      const activeModels = simulationState.activeModelIds;
-      const isLargeModelActive = activeModels.includes('llama-405b') || activeModels.includes('deepseek-r1');
-      
-      // Inter-Node Data Transfer Visualization (AllReduce Simulation)
-      const isDistributed = activeModels.some(id => MODELS[id] && MODELS[id].tpSize > 1);
-      // Check for large single-node models that use NVLink
-      const isHighNvLink = activeModels.some(id => MODELS[id] && MODELS[id].tpSize === 1 && MODELS[id].vramPerGpu > 25);
-      
-      let maxNetUtil = 0;
-      
-      // Animation speed depends on network capability
-      const speedMultiplier = networkSpeed === NetworkSpeed.IB_400G ? 2.5 : networkSpeed === NetworkSpeed.ETH_100G ? 1.5 : 0.5;
-      const time = Date.now() / 50 * speedMultiplier;
-      
-      if (isDistributed) {
-        ctx.setLineDash([4, 4]);
-        ctx.lineDashOffset = -time;
-        
-        wPos.forEach((wp, i) => {
-            if (wp.node.status !== NodeStatus.COMPUTING) return;
-            if (wp.node.netUtil > maxNetUtil) maxNetUtil = wp.node.netUtil;
-
-            // Connect to neighbor to form a mesh/ring
-            if (i < wPos.length - 1) {
-                const next = wPos[i+1];
-                if (next.node.status === NodeStatus.COMPUTING) {
-                    // Scale opacity by network utilization
-                    const util = (wp.node.netUtil + next.node.netUtil) / 200; // 0-1 normalized to capacity
-                    
-                    // Color shift: Indigo (Normal) -> Red (Bottleneck)
-                    const isBottlenecked = util > 0.95;
-                    
-                    ctx.strokeStyle = isBottlenecked ? '#ef4444' : '#818cf8'; 
-                    ctx.lineWidth = isBottlenecked ? 3 : 2;
-                    ctx.globalAlpha = Math.min(1, util + 0.2);
-                    
-                    if (isBottlenecked) {
-                        ctx.shadowColor = '#ef4444';
-                        ctx.shadowBlur = 10;
-                    }
-                    
-                    const p1 = toIso(wp.x, wp.y, wp.z + 15);
-                    const p2 = toIso(next.x, next.y, next.z + 15);
-                    
-                    ctx.beginPath(); 
-                    ctx.moveTo(p1.x, p1.y); 
-                    ctx.lineTo(p2.x, p2.y); 
-                    ctx.stroke();
-                    
-                    ctx.shadowBlur = 0;
-                }
-            }
-        });
-        ctx.setLineDash([]);
-        ctx.globalAlpha = 1.0;
-      }
-
-      // Draw Head & Workers
-      drawCube(ctx, head.x, head.y, head.z, 25, COLORS.ray, true, "Ray Head");
-      wPos.forEach(wp => {
-        const active = wp.node.status === NodeStatus.COMPUTING;
-        const shake = active && isLargeModelActive ? (Math.random() - 0.5) * 2 : 0;
-        
-        // Draw NVLink Activity Glow (Internal Pulse)
-        if (active && (isDistributed || isHighNvLink)) {
-             const pulse = Math.sin(Date.now() / 100) * 5 + 10;
-             const iso = toIso(wp.x, wp.y, wp.z + 15);
-             ctx.fillStyle = '#a855f7'; // Purple for NVLink
-             ctx.globalAlpha = 0.2;
-             ctx.beginPath(); ctx.arc(iso.x, iso.y, 20 + pulse/2, 0, Math.PI * 2); ctx.fill();
-             ctx.globalAlpha = 1.0;
-        }
-
-        drawCube(ctx, wp.x, wp.y, wp.z, 30, '#334155', false, wp.node.name.split(' ')[1], 0.5);
-        drawCube(ctx, wp.x - 10 + shake, wp.y + shake, wp.z + 15, 10, COLORS.vllm, active, '', 1);
-        drawCube(ctx, wp.x + 10 + shake, wp.y + shake, wp.z + 15, 10, COLORS.vllm, active, '', 1);
-        if (wp.node.vramUtil > 5) {
-            const h = (Math.min(100, wp.node.vramUtil) / 100) * 40; 
-            const t = toIso(wp.x, wp.y, wp.z + 35 + h); 
-            const b = toIso(wp.x, wp.y, wp.z + 30);
-            // Color shift based on VRAM pressure
-            const isHighPressure = wp.node.vramUtil > 90;
-            ctx.fillStyle = isHighPressure ? '#fb7185' : '#38bdf8'; 
-            ctx.beginPath(); ctx.arc(t.x, t.y, 3, 0, Math.PI*2); ctx.fill();
-            ctx.strokeStyle = ctx.fillStyle; ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(t.x, t.y); ctx.stroke();
-        }
-      });
-
-      // Packets
-      simulationState.requests.forEach(req => {
-          if (req.progress < 100) {
-             if (req.parallelShards > 1) wPos.forEach(wp => drawPacket(ctx, head, wp, req.progress, req.color));
-             else { const t = wPos.find(w => w.id === req.targetNodeId); if(t) drawPacket(ctx, head, t, req.progress, req.color); }
-          }
-      });
-      frameId = requestAnimationFrame(render);
+        // Get parent dimensions for responsive sizing
+        const { width, height } = canvas.getBoundingClientRect();
+        renderCluster(ctx, width, height, simulationState, networkSpeed);
+        frameId = requestAnimationFrame(render);
     };
+    
     render();
     return () => cancelAnimationFrame(frameId);
   }, [simulationState, networkSpeed]);
 
   const capacity = NETWORK_CAPACITY[networkSpeed];
-  // Check if cluster is bottlenecked
+  // Check if cluster is bottlenecked (any node > 95% network util)
   const isBottlenecked = simulationState.nodes.some(n => n.netUtil > 95);
+  // Check for distributed models
+  const isDistributed = simulationState.activeModelIds.some(id => MODELS[id] && MODELS[id].tpSize > 1);
 
   return (
     <div className="relative w-full h-[450px] bg-slate-900 rounded-xl overflow-hidden border border-slate-700 shadow-2xl">
         <canvas ref={canvasRef} className="w-full h-full block" />
-        <div className="absolute top-4 left-4 pointer-events-none text-xs text-slate-400 font-mono">CLUSTER VIEW</div>
+        
+        <div className="absolute top-4 left-4 pointer-events-none text-xs text-slate-400 font-mono tracking-wider">CLUSTER VISUALIZATION</div>
         
         {/* Network Status Overlay */}
         <div className="absolute top-4 right-4 pointer-events-none flex flex-col items-end gap-2">
@@ -167,20 +58,32 @@ const ClusterVisualization: React.FC<Props> = ({ simulationState, tutorialStep, 
              {isBottlenecked && (
                  <div className="bg-red-500/20 border border-red-500/50 px-3 py-1 rounded flex items-center gap-2 animate-pulse">
                      <div className="w-2 h-2 rounded-full bg-red-500"></div>
-                     <span className="text-xs font-bold text-red-400 uppercase">Network Saturation</span>
+                     <span className="text-xs font-bold text-red-400 uppercase tracking-wider">Network Saturation</span>
                  </div>
              )}
         </div>
 
-        <div className="absolute bottom-4 right-4 pointer-events-none flex flex-col items-end gap-1">
-             <div className="flex items-center gap-2 text-[10px] text-slate-400 bg-slate-900/80 px-2 py-1 rounded border border-slate-800">
-                 <span className="w-2 h-2 rounded-full bg-sky-600"></span> Ray Control
+        {/* Legend Overlay */}
+        <div className="absolute bottom-4 right-4 pointer-events-none flex flex-col items-end gap-1.5">
+             <div className="flex items-center gap-2 text-[10px] text-slate-400 bg-slate-900/80 px-2 py-1.5 rounded border border-slate-800">
+                 <span className="w-2 h-2 rounded-full bg-sky-600"></span> Ray Control (Head Node)
              </div>
-             <div className="flex items-center gap-2 text-[10px] text-slate-400 bg-slate-900/80 px-2 py-1 rounded border border-slate-800">
-                 <span className="w-2 h-2 rounded-full bg-[#818cf8]"></span> Inter-Node Data
-             </div>
-             <div className="flex items-center gap-2 text-[10px] text-slate-400 bg-slate-900/80 px-2 py-1 rounded border border-slate-800">
+             
+             {isDistributed ? (
+                <div className="flex items-center gap-2 text-[10px] text-purple-300 bg-purple-900/40 px-2 py-1.5 rounded border border-purple-500/30 animate-in fade-in">
+                    <span className="w-4 h-0.5 bg-purple-400 shadow-[0_0_8px_#a855f7]"></span> Tensor Parallel Sync
+                </div>
+             ) : (
+                <div className="flex items-center gap-2 text-[10px] text-slate-400 bg-slate-900/80 px-2 py-1.5 rounded border border-slate-800">
+                    <span className="w-2 h-2 rounded-full bg-[#818cf8]"></span> Inter-Node (Network)
+                </div>
+             )}
+             
+             <div className="flex items-center gap-2 text-[10px] text-slate-400 bg-slate-900/80 px-2 py-1.5 rounded border border-slate-800">
                  <span className="w-2 h-2 rounded-full bg-[#a855f7]"></span> Intra-Node (NVLink)
+             </div>
+             <div className="flex items-center gap-2 text-[10px] text-slate-400 bg-slate-900/80 px-2 py-1.5 rounded border border-slate-800">
+                 <span className="w-2 h-2 rounded-full bg-[#e11d48]"></span> vLLM Workers (GPU)
              </div>
         </div>
     </div>

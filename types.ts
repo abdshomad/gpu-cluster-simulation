@@ -64,6 +64,7 @@ export interface MetricPoint {
   nodeVramUtil: Record<string, number>; // VRAM Util per node
   nodeNetUtil: Record<string, number>; // Network Util per node
   nodeTemp: Record<string, number>; // Temp per node
+  modelVramUsage: Record<string, number>; // Total VRAM (GB) per model across cluster
 }
 
 export interface ModelConfig {
