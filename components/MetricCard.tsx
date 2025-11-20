@@ -1,6 +1,7 @@
 
-import React from 'react';
-import { ResponsiveContainer, Tooltip, CartesianGrid, YAxis } from 'recharts';
+import React, { useState } from 'react';
+import { ResponsiveContainer } from 'recharts';
+import { Minimize2, Maximize2 } from 'lucide-react';
 
 interface Props {
   title: string;
@@ -27,17 +28,30 @@ export const CustomTooltip = ({ active, payload, label }: any) => {
     return null;
 };
 
-export const MetricCard: React.FC<Props> = ({ title, colorClass, children, height = "h-48", colSpan = "" }) => (
-  <div className={`bg-grafana-panel border border-slate-700 rounded-lg p-4 ${height} flex flex-col ${colSpan}`}>
-    <div className="flex justify-between items-center mb-2">
-        <h3 className={`text-xs font-semibold ${colorClass} flex items-center gap-2 uppercase tracking-wider`}>
-           {title}
-        </h3>
+export const MetricCard: React.FC<Props> = ({ title, colorClass, children, height = "h-48", colSpan = "" }) => {
+  const [isMinimized, setIsMinimized] = useState(false);
+
+  return (
+    <div className={`bg-grafana-panel border border-slate-700 rounded-lg p-4 flex flex-col ${colSpan} ${isMinimized ? 'h-auto' : height} transition-all duration-300`}>
+      <div className="flex justify-between items-center mb-2 shrink-0">
+          <h3 className={`text-xs font-semibold ${colorClass} flex items-center gap-2 uppercase tracking-wider`}>
+             {title}
+          </h3>
+          <button 
+            onClick={() => setIsMinimized(!isMinimized)}
+            className="text-slate-500 hover:text-white p-1 rounded hover:bg-slate-800 transition-colors"
+            title={isMinimized ? "Restore" : "Minimize"}
+          >
+            {isMinimized ? <Maximize2 size={14} /> : <Minimize2 size={14} />}
+          </button>
+      </div>
+      {!isMinimized && (
+          <div className="flex-grow w-full min-h-0 animate-in fade-in duration-200">
+              <ResponsiveContainer width="100%" height="100%">
+                  {children}
+              </ResponsiveContainer>
+          </div>
+      )}
     </div>
-    <div className="flex-grow w-full">
-        <ResponsiveContainer width="100%" height="100%">
-            {children}
-        </ResponsiveContainer>
-    </div>
-  </div>
-);
+  );
+};
