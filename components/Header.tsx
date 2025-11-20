@@ -1,14 +1,17 @@
 
+
 import React, { useState, useRef, useEffect } from 'react';
-import { Activity, Database, Workflow, BookOpen, Play, Square, Users, ChevronDown, CheckSquare, Square as SquareIcon, Lock } from 'lucide-react';
-import { MODELS } from '../constants';
-import { LoadBalancingStrategy } from '../types';
+import { Activity, Database, Workflow, BookOpen, Play, Square, Users, ChevronDown, CheckSquare, Square as SquareIcon, Lock, Network } from 'lucide-react';
+import { MODELS, NETWORK_CAPACITY } from '../constants';
+import { LoadBalancingStrategy, NetworkSpeed } from '../types';
 
 interface Props {
     activeModelIds: string[];
     onToggleModel: (id: string) => void;
     lbStrategy: LoadBalancingStrategy;
     setLbStrategy: (s: LoadBalancingStrategy) => void;
+    networkSpeed: NetworkSpeed;
+    setNetworkSpeed: (s: NetworkSpeed) => void;
     tutorialStep: number | null;
     setTutorialStep: (s: number | null) => void;
     isRunning: boolean;
@@ -17,7 +20,14 @@ interface Props {
     setTargetUserCount: (n: number) => void;
 }
 
-const Header: React.FC<Props> = ({ activeModelIds, onToggleModel, lbStrategy, setLbStrategy, tutorialStep, setTutorialStep, isRunning, setIsRunning, targetUserCount, setTargetUserCount }) => {
+const Header: React.FC<Props> = ({ 
+    activeModelIds, onToggleModel, 
+    lbStrategy, setLbStrategy, 
+    networkSpeed, setNetworkSpeed,
+    tutorialStep, setTutorialStep, 
+    isRunning, setIsRunning, 
+    targetUserCount, setTargetUserCount 
+}) => {
     const [isModelDropdownOpen, setIsModelDropdownOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
     
@@ -99,8 +109,25 @@ const Header: React.FC<Props> = ({ activeModelIds, onToggleModel, lbStrategy, se
                     )}
                 </div>
 
+                {/* Network Speed Selector */}
+                <div className="hidden lg:flex items-center p-1 rounded-lg border bg-slate-800 border-slate-700 gap-2">
+                     <div className="px-2 flex items-center gap-1 text-slate-500">
+                        <Network size={12} />
+                        <span className="text-[10px] font-bold uppercase">Net</span>
+                     </div>
+                     <select 
+                        value={networkSpeed} 
+                        onChange={(e) => setNetworkSpeed(e.target.value as any)}
+                        className="bg-transparent text-xs font-medium text-slate-300 focus:outline-none cursor-pointer py-1 pr-2"
+                    >
+                        {Object.entries(NETWORK_CAPACITY).map(([key, val]) => (
+                            <option key={key} value={key}>{val.label}</option>
+                        ))}
+                    </select>
+                </div>
+
                 {/* Load Balancing Strategy Selector */}
-                <div className="relative group hidden lg:block">
+                <div className="relative group hidden xl:block">
                     <div className={`flex items-center p-1 rounded-lg border transition-colors ${
                         isDistributed 
                             ? 'bg-purple-500/10 border-purple-500/30' 
@@ -126,20 +153,6 @@ const Header: React.FC<Props> = ({ activeModelIds, onToggleModel, lbStrategy, se
                             </select>
                         )}
                     </div>
-                    
-                    {isDistributed && (
-                        <div className="absolute top-full left-1/2 -translate-x-1/2 mt-3 w-72 p-4 bg-slate-900/95 backdrop-blur-xl text-xs text-slate-300 rounded-xl border border-purple-500/30 shadow-2xl opacity-0 group-hover:opacity-100 transition-all pointer-events-none text-center z-50 animate-in slide-in-from-top-2 ring-1 ring-white/5">
-                             <div className="flex flex-col items-center gap-2">
-                                 <div className="p-2 rounded-full bg-purple-500/20 text-purple-400 shadow-[0_0_15px_rgba(168,85,247,0.2)]"><Workflow size={16} /></div>
-                                 <div>
-                                    <p className="font-bold text-slate-100 mb-1">Load Balancing Automated</p>
-                                    <p className="text-slate-400 leading-relaxed">
-                                        Active models include distributed weights (TP &gt; 1). Requests are automatically sharded across GPUs, bypassing manual load balancing strategies.
-                                    </p>
-                                 </div>
-                             </div>
-                        </div>
-                    )}
                 </div>
 
                 <div className="w-px h-4 bg-slate-700 hidden md:block"></div>

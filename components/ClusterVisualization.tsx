@@ -1,12 +1,17 @@
 
+
 import React, { useRef, useEffect } from 'react';
-import { SimulationState, NodeType, NodeStatus } from '../types';
-import { COLORS, MODELS } from '../constants';
+import { SimulationState, NodeType, NodeStatus, NetworkSpeed } from '../types';
+import { COLORS, MODELS, NETWORK_CAPACITY } from '../constants';
 import { drawGrid, drawCube, drawPacket, toIso } from '../utils/canvasDrawing';
 
-interface Props { simulationState: SimulationState; tutorialStep: number | null; }
+interface Props { 
+    simulationState: SimulationState; 
+    tutorialStep: number | null;
+    networkSpeed?: NetworkSpeed;
+}
 
-const ClusterVisualization: React.FC<Props> = ({ simulationState, tutorialStep }) => {
+const ClusterVisualization: React.FC<Props> = ({ simulationState, tutorialStep, networkSpeed = NetworkSpeed.IB_400G }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -42,27 +47,37 @@ const ClusterVisualization: React.FC<Props> = ({ simulationState, tutorialStep }
       const isLargeModelActive = activeModels.includes('llama-405b') || activeModels.includes('deepseek-r1');
       
       // Inter-Node Data Transfer Visualization (AllReduce Simulation)
-      // If any active model has TP > 1, visualize the heavy bandwidth between nodes
       const isDistributed = activeModels.some(id => MODELS[id] && MODELS[id].tpSize > 1);
       
+      let maxNetUtil = 0;
+      
       if (isDistributed) {
-        ctx.lineWidth = 2;
-        // Animate the line dash to show flow
         const time = Date.now() / 50;
         ctx.setLineDash([4, 4]);
         ctx.lineDashOffset = -time;
         
         wPos.forEach((wp, i) => {
             if (wp.node.status !== NodeStatus.COMPUTING) return;
-            
+            if (wp.node.netUtil > maxNetUtil) maxNetUtil = wp.node.netUtil;
+
             // Connect to neighbor to form a mesh/ring
             if (i < wPos.length - 1) {
                 const next = wPos[i+1];
                 if (next.node.status === NodeStatus.COMPUTING) {
                     // Scale opacity by network utilization
-                    const util = (wp.node.netUtil + next.node.netUtil) / 200; // 0-1
-                    ctx.strokeStyle = '#818cf8'; // Indigo
-                    ctx.globalAlpha = Math.min(0.8, util + 0.2);
+                    const util = (wp.node.netUtil + next.node.netUtil) / 200; // 0-1 normalized to capacity
+                    
+                    // Color shift: Indigo (Normal) -> Red (Bottleneck)
+                    const isBottlenecked = util > 0.95;
+                    
+                    ctx.strokeStyle = isBottlenecked ? '#ef4444' : '#818cf8'; 
+                    ctx.lineWidth = isBottlenecked ? 3 : 2;
+                    ctx.globalAlpha = Math.min(1, util + 0.2);
+                    
+                    if (isBottlenecked) {
+                        ctx.shadowColor = '#ef4444';
+                        ctx.shadowBlur = 10;
+                    }
                     
                     const p1 = toIso(wp.x, wp.y, wp.z + 15);
                     const p2 = toIso(next.x, next.y, next.z + 15);
@@ -71,6 +86,8 @@ const ClusterVisualization: React.FC<Props> = ({ simulationState, tutorialStep }
                     ctx.moveTo(p1.x, p1.y); 
                     ctx.lineTo(p2.x, p2.y); 
                     ctx.stroke();
+                    
+                    ctx.shadowBlur = 0;
                 }
             }
         });
@@ -111,10 +128,30 @@ const ClusterVisualization: React.FC<Props> = ({ simulationState, tutorialStep }
     return () => cancelAnimationFrame(frameId);
   }, [simulationState]);
 
+  const capacity = NETWORK_CAPACITY[networkSpeed];
+  // Check if cluster is bottlenecked
+  const isBottlenecked = simulationState.nodes.some(n => n.netUtil > 95);
+
   return (
     <div className="relative w-full h-[450px] bg-slate-900 rounded-xl overflow-hidden border border-slate-700 shadow-2xl">
         <canvas ref={canvasRef} className="w-full h-full block" />
         <div className="absolute top-4 left-4 pointer-events-none text-xs text-slate-400 font-mono">CLUSTER VIEW</div>
+        
+        {/* Network Status Overlay */}
+        <div className="absolute top-4 right-4 pointer-events-none flex flex-col items-end gap-2">
+             <div className="flex flex-col items-end bg-slate-900/80 px-3 py-2 rounded-lg border border-slate-800 backdrop-blur">
+                 <span className="text-[10px] font-bold uppercase text-slate-500 mb-1">Interconnect Speed</span>
+                 <span className="text-lg font-mono font-bold text-slate-200">{capacity.label} <span className="text-xs text-slate-500 font-normal">({capacity.bandwidth} GB/s)</span></span>
+             </div>
+             
+             {isBottlenecked && (
+                 <div className="bg-red-500/20 border border-red-500/50 px-3 py-1 rounded flex items-center gap-2 animate-pulse">
+                     <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                     <span className="text-xs font-bold text-red-400 uppercase">Network Saturation</span>
+                 </div>
+             )}
+        </div>
+
         <div className="absolute bottom-4 right-4 pointer-events-none flex flex-col items-end gap-1">
              <div className="flex items-center gap-2 text-[10px] text-slate-400 bg-slate-900/80 px-2 py-1 rounded border border-slate-800">
                  <span className="w-2 h-2 rounded-full bg-sky-600"></span> Ray Control

@@ -18,13 +18,19 @@ export enum LoadBalancingStrategy {
   LEAST_CONNECTIONS = 'LEAST_CONNECTIONS'
 }
 
+export enum NetworkSpeed {
+  ETH_10G = 'ETH_10G',
+  ETH_100G = 'ETH_100G',
+  IB_400G = 'IB_400G'
+}
+
 export interface ClusterNode {
   id: string;
   type: NodeType;
   name: string;
   gpuUtil: number; // 0-100
   vramUtil: number; // 0-100
-  netUtil: number; // 0-100 (NIC Usage)
+  netUtil: number; // 0-100 (NIC Usage relative to capacity)
   temp: number; // Celsius
   status: NodeStatus;
   activeTokens: number; // Currently processing tokens
@@ -47,6 +53,7 @@ export interface MetricPoint {
   avgLatency: number; // ms
   clusterUtilization: number; // %
   totalBandwidth: number; // GB/s (Network/Interconnect)
+  networkLimit: number; // GB/s (Current Max Capacity)
   queueDepth: number;
   activeUsers: number;
   estimatedCostPerHour: number; // $

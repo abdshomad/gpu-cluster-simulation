@@ -1,8 +1,8 @@
 
 
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { SimulationState, NodeType, NodeStatus, LoadBalancingStrategy, MetricPoint, RequestPacket, VirtualUser, UserState } from '../types';
-import { INITIAL_NODES, MODELS, MOCK_PROMPTS, USER_NAMES, USER_AVATARS } from '../constants';
+import { SimulationState, NodeType, NodeStatus, LoadBalancingStrategy, MetricPoint, RequestPacket, VirtualUser, UserState, NetworkSpeed } from '../types';
+import { INITIAL_NODES, MODELS, MOCK_PROMPTS, USER_NAMES, USER_AVATARS, NETWORK_CAPACITY } from '../constants';
 
 export const useSimulation = () => {
   const [simulationState, setSimulationState] = useState<SimulationState>({
@@ -12,6 +12,7 @@ export const useSimulation = () => {
   const [isRunning, setIsRunning] = useState(false);
   const [targetUserCount, setTargetUserCount] = useState(5);
   const [lbStrategy, setLbStrategy] = useState<LoadBalancingStrategy>(LoadBalancingStrategy.RANDOM);
+  const [networkSpeed, setNetworkSpeed] = useState<NetworkSpeed>(NetworkSpeed.IB_400G);
   
   const stateRef = useRef(simulationState);
   stateRef.current = simulationState;
@@ -28,6 +29,7 @@ export const useSimulation = () => {
   const tick = useCallback(() => {
     const state = stateRef.current;
     const newTime = state.systemTime + 1;
+    const currentNetworkCap = NETWORK_CAPACITY[networkSpeed];
     
     // Calculate total static VRAM requirement from all active models
     const activeModels = state.activeModelIds.map(id => MODELS[id]);
@@ -88,17 +90,48 @@ export const useSimulation = () => {
         return u;
     });
 
-    // 3. Process Requests
+    // 3. Determine Network Bottlenecks
+    // Calculate aggregate demand per node first to determine global throttle
+    const workerNodes = state.nodes.filter(n => n.type === NodeType.WORKER);
+    let nodeBandwidthDemands: Record<string, number> = {};
+    let maxDemand = 0;
+
+    workerNodes.forEach(node => {
+        const relevantRequests = newRequests.filter(r => r.parallelShards > 1 || r.targetNodeId === node.id);
+        let demand = 0;
+        if (relevantRequests.length > 0) {
+             const hasDistributed = relevantRequests.some(r => MODELS[r.modelId].tpSize > 1);
+             if (hasDistributed) {
+                 // Distributed models demand HIGH bandwidth per request (AllReduce)
+                 // Demand scales with request count
+                 demand = relevantRequests.length * 5.0; // 5 GB/s per active stream per node
+             } else {
+                 demand = relevantRequests.length * 0.01; // Negligible
+             }
+        }
+        nodeBandwidthDemands[node.id] = demand;
+        if (demand > maxDemand) maxDemand = demand;
+    });
+
+    // Global throttle factor if any node exceeds network capacity
+    // 1.0 = No throttle, < 1.0 = Slow down
+    const throttleFactor = maxDemand > currentNetworkCap.bandwidth 
+        ? currentNetworkCap.bandwidth / maxDemand 
+        : 1.0;
+
+    // 4. Process Requests (with throttling)
     const finished = new Map();
     newRequests = newRequests.map(r => {
         const m = MODELS[r.modelId];
-        const baseSpeed = (m?.tokensPerSec || 100) / 60;
+        // Apply throttle factor to speed
+        const baseSpeed = ((m?.tokensPerSec || 100) / 60) * throttleFactor;
+        
         const p = r.progress + baseSpeed;
         if (p >= 100) finished.set(r.id, r);
         return { ...r, progress: p };
     }).filter(r => r.progress < 100);
 
-    // 4. Handle Finished Requests
+    // 5. Handle Finished Requests
     newUsers = newUsers.map(u => {
         if (u.state === UserState.WAITING && u.currentRequestId && finished.has(u.currentRequestId)) {
             const req = finished.get(u.currentRequestId);
@@ -110,13 +143,9 @@ export const useSimulation = () => {
         return u;
     });
 
-    // 5. Update Node Stats & Network Logic
+    // 6. Update Node Stats
     const activeReqs = newRequests.length;
-    
-    // Calculate theoretical network usage based on active models
-    // Distributed models (TP>1) consume MASSIVE interconnect bandwidth (AllReduce)
-    // Single node models consume minimal bandwidth (Request/Response text only)
-    let totalClusterBandwidth = 0; // GB/s
+    let totalClusterBandwidth = 0;
 
     const newNodes = state.nodes.map(node => {
         if (node.type === NodeType.HEAD) return { ...node, gpuUtil: Math.min(80, activeReqs), status: activeReqs > 0 ? NodeStatus.COMPUTING : NodeStatus.IDLE };
@@ -127,7 +156,7 @@ export const useSimulation = () => {
         // Compute Utilization
         const util = node.gpuUtil + (Math.min(100, load * 15) - node.gpuUtil) * 0.1;
         
-        // VRAM: Base + Dynamic
+        // VRAM
         let targetVram = baseVramUsage;
         const dynamicOverhead = relevantRequests.reduce((sum, r) => {
              const m = MODELS[r.modelId];
@@ -136,48 +165,38 @@ export const useSimulation = () => {
         }, 0);
         targetVram += dynamicOverhead;
         
-        // Network: Calculate bandwidth per node
-        let nodeBandwidth = 0; // GB/s
-        if (load > 0) {
-            // Check if this node is running distributed workloads
-            const hasDistributed = relevantRequests.some(r => MODELS[r.modelId].tpSize > 1);
-            if (hasDistributed) {
-                // TP requires sync every layer. 
-                // Approx: (ModelSize / GPUs) * Layers * Frequency
-                // Simulating massive spike: ~20-50 GB/s per node for big models
-                nodeBandwidth = load * 45; 
-            } else {
-                // Just HTTP/gRPC overhead: ~0.1 GB/s
-                nodeBandwidth = load * 0.1;
-            }
-        }
-        totalClusterBandwidth += nodeBandwidth;
+        // Network stats for visualization
+        // Show actual throughput (capped by limit)
+        const demand = nodeBandwidthDemands[node.id] || 0;
+        const actualBandwidth = Math.min(demand, currentNetworkCap.bandwidth);
+        totalClusterBandwidth += actualBandwidth;
 
-        // Network Utilization % (Assuming 400Gbps/50GBps NICs)
-        const maxBw = 50; 
-        const currentNetUtil = Math.min(100, (nodeBandwidth / maxBw) * 100);
+        // Network Utilization % relative to SELECTED capacity
+        // If demand > capacity, util should be 100%
+        const currentNetUtil = Math.min(100, (demand / currentNetworkCap.bandwidth) * 100);
 
         return { 
             ...node, 
             gpuUtil: util, 
             vramUtil: node.vramUtil + (Math.min(100, targetVram) - node.vramUtil) * 0.1,
-            netUtil: node.netUtil + (currentNetUtil - node.netUtil) * 0.2, // Smooth transition
+            netUtil: node.netUtil + (currentNetUtil - node.netUtil) * 0.2, 
             temp: 30 + util * 0.4 + Math.random(), 
             status: util > 2 ? NodeStatus.COMPUTING : NodeStatus.IDLE, 
-            activeTokens: load > 0 ? Math.floor(util * 5) : 0
+            activeTokens: load > 0 ? Math.floor(util * 5 * throttleFactor) : 0
         };
     });
 
-    // 6. Metrics
+    // 7. Metrics
     const throughput = newNodes.reduce((acc, n) => acc + (n.type === NodeType.WORKER ? n.activeTokens : 0), 0);
     const costPerTick = newRequests.reduce((acc, r) => acc + ((MODELS[r.modelId]?.tokensPerSec || 0) / 1000 * (MODELS[r.modelId]?.costPer1kTokens || 0) / 60), 0);
 
     const newMetric: MetricPoint = {
         timestamp: newTime, 
         totalThroughput: throughput, 
-        avgLatency: activeReqs > 0 ? 20 + activeReqs : 0,
+        avgLatency: activeReqs > 0 ? (20 + activeReqs) / throttleFactor : 0, // Latency spikes if throttled
         clusterUtilization: newNodes.reduce((acc, n) => acc + n.gpuUtil, 0) / newNodes.length,
         totalBandwidth: totalClusterBandwidth,
+        networkLimit: currentNetworkCap.bandwidth * 10, // Total capacity across 10 nodes roughly
         queueDepth: activeReqs, 
         activeUsers: newUsers.length, 
         estimatedCostPerHour: costPerTick * 3600, 
@@ -192,7 +211,7 @@ export const useSimulation = () => {
         ...prev, nodes: newNodes, requests: newRequests, metricsHistory: [...prev.metricsHistory, newMetric].slice(-300),
         systemTime: newTime, virtualUsers: newUsers, activityLog: newLog.slice(0, 20)
     }));
-  }, [targetUserCount, lbStrategy]);
+  }, [targetUserCount, lbStrategy, networkSpeed]);
 
   useEffect(() => {
     let i: any;
@@ -202,6 +221,7 @@ export const useSimulation = () => {
 
   return { 
     simulationState, setSimulationState, isRunning, setIsRunning, 
-    targetUserCount, setTargetUserCount, lbStrategy, setLbStrategy 
+    targetUserCount, setTargetUserCount, lbStrategy, setLbStrategy,
+    networkSpeed, setNetworkSpeed
   };
 };

@@ -1,4 +1,5 @@
 
+
 import React, { useState } from 'react';
 import { Server, Activity } from 'lucide-react';
 import { MODELS } from './constants';
@@ -12,7 +13,13 @@ import TutorialOverlay from './components/TutorialOverlay';
 import { useSimulation } from './hooks/useSimulation';
 
 const App: React.FC = () => {
-  const { simulationState, setSimulationState, isRunning, setIsRunning, targetUserCount, setTargetUserCount, lbStrategy, setLbStrategy } = useSimulation();
+  const { 
+    simulationState, setSimulationState, 
+    isRunning, setIsRunning, 
+    targetUserCount, setTargetUserCount, 
+    lbStrategy, setLbStrategy,
+    networkSpeed, setNetworkSpeed
+  } = useSimulation();
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [tutorialStep, setTutorialStep] = useState<number | null>(null);
 
@@ -44,6 +51,7 @@ const App: React.FC = () => {
       <Header 
         activeModelIds={simulationState.activeModelIds} onToggleModel={toggleModel}
         lbStrategy={lbStrategy} setLbStrategy={setLbStrategy}
+        networkSpeed={networkSpeed} setNetworkSpeed={setNetworkSpeed}
         tutorialStep={tutorialStep} setTutorialStep={setTutorialStep}
         isRunning={isRunning} setIsRunning={setIsRunning}
         targetUserCount={targetUserCount} setTargetUserCount={setTargetUserCount}
@@ -61,7 +69,7 @@ const App: React.FC = () => {
                         <div className="flex flex-col items-end"><span className="text-slate-500 uppercase">Est. Cost</span><span className="font-bold text-emerald-400">${simulationState.metricsHistory.slice(-1)[0]?.estimatedCostPerHour.toFixed(2) || '0.00'}/hr</span></div>
                     </div>
                 </div>
-                <ClusterVisualization simulationState={simulationState} tutorialStep={tutorialStep} />
+                <ClusterVisualization simulationState={simulationState} tutorialStep={tutorialStep} networkSpeed={networkSpeed} />
             </section>
             <section id="metrics-dashboard">
                 <div className="flex justify-between items-center mb-3"><h2 className="text-xl font-semibold flex items-center gap-2"><Activity size={20} className="text-emerald-400" /> Prometheus Metrics</h2></div>

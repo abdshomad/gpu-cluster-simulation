@@ -1,4 +1,5 @@
 
+
 import React from 'react';
 import { LineChart, Line, AreaChart, Area, CartesianGrid, YAxis, Tooltip, ReferenceLine } from 'recharts';
 import { MetricPoint } from '../types';
@@ -10,6 +11,7 @@ const WORKER_COLORS = ['#f87171', '#fb923c', '#fbbf24', '#a3e635', '#4ade80', '#
 const MetricsDashboard: React.FC<Props> = ({ data }) => {
   const recent = data.slice(-50);
   const stackedData = recent.map(d => ({ ...d, ...d.nodeActiveTokens }));
+  const currentLimit = recent.slice(-1)[0]?.networkLimit || 100;
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -35,6 +37,8 @@ const MetricsDashboard: React.FC<Props> = ({ data }) => {
 
       <MetricCard title="Inter-Node Data Transfer (GB/s)" colorClass="text-indigo-400" colSpan="md:col-span-2">
         <AreaChart data={recent}><CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} /><YAxis hide domain={[0, 'auto']} /><Tooltip content={<CustomTooltip />} cursor={{stroke: '#475569'}} />
+        {/* Reference line for physical limit */}
+        <ReferenceLine y={currentLimit} stroke="#ef4444" strokeDasharray="3 3" label={{ position: 'insideTopRight', value: 'PHYSICAL LIMIT', fill: '#ef4444', fontSize: 10 }} />
         <Area type="monotone" dataKey="totalBandwidth" stroke="#818cf8" strokeWidth={2} fill="#818cf840" isAnimationActive={false} />
         </AreaChart>
       </MetricCard>

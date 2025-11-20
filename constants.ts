@@ -1,5 +1,6 @@
 
-import { ClusterNode, NodeType, NodeStatus, ModelConfig } from './types';
+
+import { ClusterNode, NodeType, NodeStatus, ModelConfig, NetworkSpeed } from './types';
 
 export const MODELS: Record<string, ModelConfig> = {
   'tiny-llama': {
@@ -92,6 +93,12 @@ export const MODELS: Record<string, ModelConfig> = {
     description: 'State-of-the-art reasoning model. Massive MoE requiring full cluster distribution.',
     costPer1kTokens: 0.008
   }
+};
+
+export const NETWORK_CAPACITY: Record<NetworkSpeed, { name: string, bandwidth: number, label: string }> = {
+  [NetworkSpeed.ETH_10G]: { name: '10GbE Ethernet', bandwidth: 1.25, label: '10G' },
+  [NetworkSpeed.ETH_100G]: { name: '100GbE Fabric', bandwidth: 12.5, label: '100G' },
+  [NetworkSpeed.IB_400G]: { name: '400G InfiniBand', bandwidth: 50.0, label: '400G' }
 };
 
 // Generate 10 workers (Servers)
