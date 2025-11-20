@@ -52,7 +52,8 @@ export interface MetricPoint {
   totalThroughput: number; // tokens/sec
   avgLatency: number; // ms
   clusterUtilization: number; // %
-  totalBandwidth: number; // GB/s (Network/Interconnect)
+  totalBandwidth: number; // GB/s (Network/Interconnect - Inter-node)
+  totalNvLinkBandwidth: number; // GB/s (NVLink - Intra-node)
   networkLimit: number; // GB/s (Current Max Capacity)
   queueDepth: number;
   activeUsers: number;

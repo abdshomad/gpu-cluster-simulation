@@ -1,7 +1,7 @@
 
 
 import React from 'react';
-import { LineChart, Line, AreaChart, Area, CartesianGrid, YAxis, Tooltip, ReferenceLine } from 'recharts';
+import { LineChart, Line, AreaChart, Area, CartesianGrid, YAxis, Tooltip, ReferenceLine, Legend } from 'recharts';
 import { MetricPoint } from '../types';
 import { MetricCard, CustomTooltip } from './MetricCard';
 
@@ -35,11 +35,21 @@ const MetricsDashboard: React.FC<Props> = ({ data }) => {
         <Line type="stepAfter" dataKey="queueDepth" stroke="#f43f5e" strokeWidth={2} dot={false} isAnimationActive={false} /></LineChart>
       </MetricCard>
 
-      <MetricCard title="Inter-Node Data Transfer (GB/s)" colorClass="text-indigo-400" colSpan="md:col-span-2">
-        <AreaChart data={recent}><CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} /><YAxis hide domain={[0, 'auto']} /><Tooltip content={<CustomTooltip />} cursor={{stroke: '#475569'}} />
-        {/* Reference line for physical limit */}
-        <ReferenceLine y={currentLimit} stroke="#ef4444" strokeDasharray="3 3" label={{ position: 'insideTopRight', value: 'PHYSICAL LIMIT', fill: '#ef4444', fontSize: 10 }} />
-        <Area type="monotone" dataKey="totalBandwidth" stroke="#818cf8" strokeWidth={2} fill="#818cf840" isAnimationActive={false} />
+      <MetricCard title="Data Transfer Rates (GB/s)" colorClass="text-indigo-400" colSpan="md:col-span-2">
+        <AreaChart data={recent}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
+          <YAxis hide domain={[0, 'auto']} />
+          <Tooltip content={<CustomTooltip />} cursor={{stroke: '#475569'}} />
+          <Legend verticalAlign="top" height={36} iconType="circle" wrapperStyle={{ fontSize: '10px' }} />
+          
+          {/* Reference line for physical limit of network */}
+          <ReferenceLine y={currentLimit} stroke="#ef4444" strokeDasharray="3 3" label={{ position: 'insideTopRight', value: 'NET LIMIT', fill: '#ef4444', fontSize: 10 }} />
+          
+          {/* NVLink Bandwidth (Intra-Node) - Usually higher */}
+          <Area type="monotone" name="Intra-Node (NVLink)" dataKey="totalNvLinkBandwidth" stroke="#a855f7" strokeWidth={2} fill="#a855f740" isAnimationActive={false} stackId="1" />
+          
+          {/* Network Bandwidth (Inter-Node) */}
+          <Area type="monotone" name="Inter-Node (Network)" dataKey="totalBandwidth" stroke="#818cf8" strokeWidth={2} fill="#818cf840" isAnimationActive={false} stackId="2" />
         </AreaChart>
       </MetricCard>
 

@@ -42,17 +42,19 @@ const ClusterVisualization: React.FC<Props> = ({ simulationState, tutorialStep, 
           }
       });
 
-      // Check if a large model is active to trigger shake effects
+      // Check if a large model is active to trigger shake effects and data transfer viz
       const activeModels = simulationState.activeModelIds;
       const isLargeModelActive = activeModels.includes('llama-405b') || activeModels.includes('deepseek-r1');
       
       // Inter-Node Data Transfer Visualization (AllReduce Simulation)
       const isDistributed = activeModels.some(id => MODELS[id] && MODELS[id].tpSize > 1);
+      // Check for large single-node models that use NVLink
+      const isHighNvLink = activeModels.some(id => MODELS[id] && MODELS[id].tpSize === 1 && MODELS[id].vramPerGpu > 25);
       
       let maxNetUtil = 0;
+      const time = Date.now() / 50;
       
       if (isDistributed) {
-        const time = Date.now() / 50;
         ctx.setLineDash([4, 4]);
         ctx.lineDashOffset = -time;
         
@@ -100,6 +102,17 @@ const ClusterVisualization: React.FC<Props> = ({ simulationState, tutorialStep, 
       wPos.forEach(wp => {
         const active = wp.node.status === NodeStatus.COMPUTING;
         const shake = active && isLargeModelActive ? (Math.random() - 0.5) * 2 : 0;
+        
+        // Draw NVLink Activity Glow (Internal Pulse)
+        if (active && (isDistributed || isHighNvLink)) {
+             const pulse = Math.sin(Date.now() / 100) * 5 + 10;
+             const iso = toIso(wp.x, wp.y, wp.z + 15);
+             ctx.fillStyle = '#a855f7'; // Purple for NVLink
+             ctx.globalAlpha = 0.2;
+             ctx.beginPath(); ctx.arc(iso.x, iso.y, 20 + pulse/2, 0, Math.PI * 2); ctx.fill();
+             ctx.globalAlpha = 1.0;
+        }
+
         drawCube(ctx, wp.x, wp.y, wp.z, 30, '#334155', false, wp.node.name.split(' ')[1], 0.5);
         drawCube(ctx, wp.x - 10 + shake, wp.y + shake, wp.z + 15, 10, COLORS.vllm, active, '', 1);
         drawCube(ctx, wp.x + 10 + shake, wp.y + shake, wp.z + 15, 10, COLORS.vllm, active, '', 1);
@@ -158,6 +171,9 @@ const ClusterVisualization: React.FC<Props> = ({ simulationState, tutorialStep, 
              </div>
              <div className="flex items-center gap-2 text-[10px] text-slate-400 bg-slate-900/80 px-2 py-1 rounded border border-slate-800">
                  <span className="w-2 h-2 rounded-full bg-[#818cf8]"></span> Inter-Node Data
+             </div>
+             <div className="flex items-center gap-2 text-[10px] text-slate-400 bg-slate-900/80 px-2 py-1 rounded border border-slate-800">
+                 <span className="w-2 h-2 rounded-full bg-[#a855f7]"></span> Intra-Node (NVLink)
              </div>
         </div>
     </div>

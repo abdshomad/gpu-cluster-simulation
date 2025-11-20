@@ -90,33 +90,50 @@ export const useSimulation = () => {
         return u;
     });
 
-    // 3. Determine Network Bottlenecks
+    // 3. Determine Network & NVLink Bottlenecks
     // Calculate aggregate demand per node first to determine global throttle
     const workerNodes = state.nodes.filter(n => n.type === NodeType.WORKER);
     let nodeBandwidthDemands: Record<string, number> = {};
-    let maxDemand = 0;
+    let nodeNvLinkDemands: Record<string, number> = {};
+    let maxNetworkDemand = 0;
 
     workerNodes.forEach(node => {
         const relevantRequests = newRequests.filter(r => r.parallelShards > 1 || r.targetNodeId === node.id);
-        let demand = 0;
+        let netDemand = 0;
+        let nvLinkDemand = 0;
+        
         if (relevantRequests.length > 0) {
              const hasDistributed = relevantRequests.some(r => MODELS[r.modelId].tpSize > 1);
+             // Check if any active model on this node is "Large" (>30B) implying dual-GPU usage on single node
+             const hasLargeSingleNode = relevantRequests.some(r => {
+                 const m = MODELS[r.modelId];
+                 return m.tpSize === 1 && m.vramPerGpu > 25; // Heuristic: >25% VRAM per node likely engages 2 GPUs
+             });
+
              if (hasDistributed) {
-                 // Distributed models demand HIGH bandwidth per request (AllReduce)
-                 // Demand scales with request count
-                 demand = relevantRequests.length * 5.0; // 5 GB/s per active stream per node
+                 // Distributed models demand HIGH Network bandwidth (AllReduce across nodes)
+                 netDemand = relevantRequests.length * 5.0; 
+                 // Distributed also demands VERY HIGH NVLink bandwidth (AllReduce within node first)
+                 nvLinkDemand = relevantRequests.length * 150.0; // NVLink is ~600GB/s
+             } else if (hasLargeSingleNode) {
+                 // Large single node model (e.g. Llama 70B) uses NVLink heavily between the 2 GPUs
+                 netDemand = relevantRequests.length * 0.1; // Minimal network
+                 nvLinkDemand = relevantRequests.length * 100.0; // High NVLink
              } else {
-                 demand = relevantRequests.length * 0.01; // Negligible
+                 // Small model (TinyLlama), likely runs on 1 GPU or low comms
+                 netDemand = relevantRequests.length * 0.01;
+                 nvLinkDemand = relevantRequests.length * 5.0;
              }
         }
-        nodeBandwidthDemands[node.id] = demand;
-        if (demand > maxDemand) maxDemand = demand;
+        nodeBandwidthDemands[node.id] = netDemand;
+        nodeNvLinkDemands[node.id] = nvLinkDemand;
+        if (netDemand > maxNetworkDemand) maxNetworkDemand = netDemand;
     });
 
     // Global throttle factor if any node exceeds network capacity
     // 1.0 = No throttle, < 1.0 = Slow down
-    const throttleFactor = maxDemand > currentNetworkCap.bandwidth 
-        ? currentNetworkCap.bandwidth / maxDemand 
+    const throttleFactor = maxNetworkDemand > currentNetworkCap.bandwidth 
+        ? currentNetworkCap.bandwidth / maxNetworkDemand 
         : 1.0;
 
     // 4. Process Requests (with throttling)
@@ -146,6 +163,7 @@ export const useSimulation = () => {
     // 6. Update Node Stats
     const activeReqs = newRequests.length;
     let totalClusterBandwidth = 0;
+    let totalClusterNvLink = 0;
 
     const newNodes = state.nodes.map(node => {
         if (node.type === NodeType.HEAD) return { ...node, gpuUtil: Math.min(80, activeReqs), status: activeReqs > 0 ? NodeStatus.COMPUTING : NodeStatus.IDLE };
@@ -165,15 +183,17 @@ export const useSimulation = () => {
         }, 0);
         targetVram += dynamicOverhead;
         
-        // Network stats for visualization
+        // Network & NVLink stats
+        const netDemand = nodeBandwidthDemands[node.id] || 0;
+        const nvLinkDemand = nodeNvLinkDemands[node.id] || 0;
+        
         // Show actual throughput (capped by limit)
-        const demand = nodeBandwidthDemands[node.id] || 0;
-        const actualBandwidth = Math.min(demand, currentNetworkCap.bandwidth);
+        const actualBandwidth = Math.min(netDemand, currentNetworkCap.bandwidth);
         totalClusterBandwidth += actualBandwidth;
+        totalClusterNvLink += nvLinkDemand;
 
         // Network Utilization % relative to SELECTED capacity
-        // If demand > capacity, util should be 100%
-        const currentNetUtil = Math.min(100, (demand / currentNetworkCap.bandwidth) * 100);
+        const currentNetUtil = Math.min(100, (netDemand / currentNetworkCap.bandwidth) * 100);
 
         return { 
             ...node, 
@@ -196,6 +216,7 @@ export const useSimulation = () => {
         avgLatency: activeReqs > 0 ? (20 + activeReqs) / throttleFactor : 0, // Latency spikes if throttled
         clusterUtilization: newNodes.reduce((acc, n) => acc + n.gpuUtil, 0) / newNodes.length,
         totalBandwidth: totalClusterBandwidth,
+        totalNvLinkBandwidth: totalClusterNvLink,
         networkLimit: currentNetworkCap.bandwidth * 10, // Total capacity across 10 nodes roughly
         queueDepth: activeReqs, 
         activeUsers: newUsers.length, 
