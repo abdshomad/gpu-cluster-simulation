@@ -100,20 +100,24 @@ export const TUTORIAL_STEPS = [
     id: 0,
     title: '1. The Ray Cluster',
     content: 'This visualizes a large GPU cluster with 10 Servers (20 GPUs total). The top node is the "Head Node" (CPU-only) managing the swarm. This setup mimics a real production environment for Enterprise LLMs.',
+    targetId: 'cluster-view'
   },
   {
     id: 1,
     title: '2. Model Loading & VRAM',
     content: 'Switching models changes memory topology. TinyLlama (1.1B) takes minimal VRAM, allowing many independent replicas. Llama 405B is massive (800GB+), filling almost all VRAM across the entire cluster just to load weights.',
+    targetId: 'model-selector'
   },
   {
     id: 2,
     title: '3. Parallelism Strategies',
     content: 'Observe the particle flow. For TinyLlama, requests go to single servers (Data Parallelism). For Llama 405B, every request splits into shards hitting ALL servers simultaneously (Tensor Parallelism).',
+    targetId: 'cluster-view'
   },
   {
     id: 3,
     title: '4. Batching & Throughput',
     content: 'vLLM\'s Continuous Batching fills gaps in computation. With TinyLlama, throughput is high (thousands of tokens/s). With 405B, throughput drops due to network overhead and compute intensity, but it enables reasoning capabilities impossible on smaller models.',
+    targetId: 'metrics-dashboard'
   }
 ];

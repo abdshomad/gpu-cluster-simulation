@@ -26,7 +26,7 @@ const Header: React.FC<Props> = ({ activeModelId, onSwitchModel, lbStrategy, set
                 <h1 className="font-bold text-lg tracking-tight">Ray & vLLM <span className="font-light text-slate-400">Sim</span></h1>
             </div>
             <div className="flex items-center gap-4">
-                <div className="flex bg-slate-800 p-1 rounded-lg border border-slate-700 hidden md:flex">
+                <div id="model-selector" className="flex bg-slate-800 p-1 rounded-lg border border-slate-700 hidden md:flex">
                     {Object.values(MODELS).map(m => (
                         <div key={m.id} className="relative group">
                             <button onClick={() => onSwitchModel(m.id)} className={`px-3 py-1.5 text-xs font-medium rounded-md flex items-center gap-2 transition-all ${activeModelId === m.id ? 'bg-sky-600 text-white' : 'text-slate-400 hover:text-slate-200'}`}>

@@ -33,7 +33,7 @@ const App: React.FC = () => {
       
       <main className="pt-24 px-6 max-w-[1600px] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6">
         <div className="lg:col-span-8 space-y-6">
-            <section>
+            <section id="cluster-view">
                 <div className="flex justify-between items-center mb-3">
                     <h2 className="text-xl font-semibold flex items-center gap-2"><Server size={20} className="text-sky-400" /> Cluster Topology <span className="text-sm text-slate-500 font-normal">(10 Workers)</span></h2>
                     <div className="flex gap-3 text-xs">
@@ -43,7 +43,7 @@ const App: React.FC = () => {
                 </div>
                 <ClusterVisualization simulationState={simulationState} tutorialStep={tutorialStep} />
             </section>
-            <section>
+            <section id="metrics-dashboard">
                 <div className="flex justify-between items-center mb-3"><h2 className="text-xl font-semibold flex items-center gap-2"><Activity size={20} className="text-emerald-400" /> Prometheus Metrics</h2></div>
                 <MetricsDashboard data={simulationState.metricsHistory} />
             </section>
