@@ -1,8 +1,11 @@
 
+
+
+
 import React, { useState, useRef, useEffect } from 'react';
-import { Activity, Database, Workflow, BookOpen, Play, Square, Users, ChevronDown, CheckSquare, Square as SquareIcon, Lock, Network, Layers, Cpu, Settings } from 'lucide-react';
-import { MODELS, NETWORK_CAPACITY, GPU_SPECS } from '../constants';
-import { LoadBalancingStrategy, NetworkSpeed, PlacementStrategy, GpuType } from '../types';
+import { Activity, Database, Workflow, BookOpen, Play, Square, Users, ChevronDown, CheckSquare, Square as SquareIcon, Lock, Network, Layers, Cpu, Settings, LayoutTemplate } from 'lucide-react';
+import { MODELS, NETWORK_CAPACITY, GPU_SPECS, CLUSTER_TEMPLATES } from '../constants';
+import { LoadBalancingStrategy, NetworkSpeed, PlacementStrategy, GpuType, HardwareTemplate } from '../types';
 
 interface Props {
     activeModelIds: string[];
@@ -20,11 +23,12 @@ interface Props {
     targetUserCount: number;
     setTargetUserCount: (n: number) => void;
     
-    // Hardware Config props (optional to maintain backward compat if needed, but we'll pass them from App)
+    // Hardware Config props
     nodeCount?: number;
     gpusPerNode?: number;
     gpuType?: GpuType;
     updateHardware?: (count: number, gpus: number, type: GpuType) => void;
+    applyTemplate?: (t: HardwareTemplate) => void;
 }
 
 const Header: React.FC<Props> = ({ 
@@ -35,12 +39,15 @@ const Header: React.FC<Props> = ({
     tutorialStep, setTutorialStep, 
     isRunning, setIsRunning, 
     targetUserCount, setTargetUserCount,
-    nodeCount = 10, gpusPerNode = 2, gpuType = 'A100', updateHardware
+    nodeCount = 10, gpusPerNode = 2, gpuType = 'A100', updateHardware, applyTemplate
 }) => {
     const [isModelDropdownOpen, setIsModelDropdownOpen] = useState(false);
     const [isHardwareDropdownOpen, setIsHardwareDropdownOpen] = useState(false);
+    const [isTemplateDropdownOpen, setIsTemplateDropdownOpen] = useState(false);
+    
     const dropdownRef = useRef<HTMLDivElement>(null);
     const hardwareRef = useRef<HTMLDivElement>(null);
+    const templateRef = useRef<HTMLDivElement>(null);
     
     const isDistributed = activeModelIds.some(id => MODELS[id].tpSize > 1);
 
@@ -51,6 +58,9 @@ const Header: React.FC<Props> = ({
             }
             if (hardwareRef.current && !hardwareRef.current.contains(event.target as Node)) {
                 setIsHardwareDropdownOpen(false);
+            }
+            if (templateRef.current && !templateRef.current.contains(event.target as Node)) {
+                setIsTemplateDropdownOpen(false);
             }
         };
         document.addEventListener('mousedown', handleClickOutside);
@@ -71,8 +81,38 @@ const Header: React.FC<Props> = ({
             </div>
             <div className="flex items-center gap-2 md:gap-4 flex-1 justify-end min-w-0">
                 
+                {/* Templates Dropdown */}
+                {applyTemplate && (
+                    <div id="header-templates" className="relative shrink-0 hidden xl:block" ref={templateRef}>
+                        <button 
+                            onClick={() => setIsTemplateDropdownOpen(!isTemplateDropdownOpen)}
+                            className="flex items-center gap-2 bg-slate-800 p-1.5 px-3 rounded-lg border border-slate-700 hover:border-slate-600 transition-colors group"
+                        >
+                            <LayoutTemplate size={14} className="text-emerald-500" />
+                            <span className="text-xs font-bold text-slate-300">Templates</span>
+                            <ChevronDown size={12} className="text-slate-500" />
+                        </button>
+                        
+                        {isTemplateDropdownOpen && (
+                            <div className="absolute top-full right-0 mt-2 w-64 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl z-50 p-1.5 animate-in zoom-in-95 duration-100 ring-1 ring-white/5">
+                                <div className="px-2 py-1.5 text-[10px] font-bold uppercase text-slate-500 tracking-wider">Load Cluster Template</div>
+                                {CLUSTER_TEMPLATES.map((t) => (
+                                    <button
+                                        key={t.id}
+                                        onClick={() => { applyTemplate(t); setIsTemplateDropdownOpen(false); }}
+                                        className="w-full text-left p-2.5 rounded-lg hover:bg-slate-800 transition-colors group"
+                                    >
+                                        <div className="font-bold text-sm text-slate-200 group-hover:text-white">{t.name}</div>
+                                        <div className="text-[11px] text-slate-500 group-hover:text-slate-400">{t.description}</div>
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                )}
+
                 {/* Hardware Config Dropdown */}
-                <div className="relative shrink-0 hidden xl:block" ref={hardwareRef}>
+                <div id="header-hardware" className="relative shrink-0 hidden xl:block" ref={hardwareRef}>
                     <button 
                         onClick={() => setIsHardwareDropdownOpen(!isHardwareDropdownOpen)}
                         className="flex items-center gap-2 bg-slate-800 p-1.5 px-3 rounded-lg border border-slate-700 hover:border-slate-600 transition-colors min-w-[160px] justify-between group"
@@ -89,6 +129,9 @@ const Header: React.FC<Props> = ({
                     
                     {isHardwareDropdownOpen && updateHardware && (
                         <div className="absolute top-full right-0 mt-2 w-72 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl z-50 p-4 animate-in zoom-in-95 duration-100 ring-1 ring-white/5 space-y-4">
+                            <div className="mb-2 pb-2 border-b border-slate-800 text-[10px] text-slate-500 uppercase tracking-wider font-bold">
+                                Custom Configuration
+                            </div>
                             <div>
                                 <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1.5">Cluster Size (Nodes)</label>
                                 <div className="flex items-center gap-3">
@@ -187,7 +230,7 @@ const Header: React.FC<Props> = ({
                 </div>
 
                 {/* Network Speed Selector */}
-                <div className="hidden xl:flex items-center p-1 rounded-lg border bg-slate-800 border-slate-700 gap-2">
+                <div id="header-network" className="hidden xl:flex items-center p-1 rounded-lg border bg-slate-800 border-slate-700 gap-2">
                      <div className="px-2 flex items-center gap-1 text-slate-500">
                         <Network size={12} />
                         <span className="text-[10px] font-bold uppercase">Net</span>
@@ -223,7 +266,7 @@ const Header: React.FC<Props> = ({
                 )}
 
                 {/* Load Balancing Strategy Selector */}
-                <div className="relative group hidden xl:block">
+                <div id="header-lb" className="relative group hidden xl:block">
                     <div className={`flex items-center p-1 rounded-lg border transition-colors ${
                         isDistributed 
                             ? 'bg-purple-500/10 border-purple-500/30' 

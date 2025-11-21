@@ -1,4 +1,6 @@
 
+
+
 import { SimulationState, NodeType, NodeStatus, LoadBalancingStrategy, MetricPoint, UserState, VirtualUser, NetworkSpeed, PlacementStrategy, RequestStage, ClusterNode } from '../types';
 import { NETWORK_CAPACITY, MODELS, MOCK_PROMPTS, USER_NAMES, USER_AVATARS, GPU_SPECS } from '../constants';
 
@@ -43,15 +45,8 @@ export const calculateNextTick = (
                 const selectedModelId = state.activeModelIds[Math.floor(Math.random() * state.activeModelIds.length)];
                 const selectedModel = MODELS[selectedModelId];
 
-                // Determine if model fits on a single node
-                // NOTE: We assume the first worker represents the hardware config of the cluster
-                const sampleWorker = onlineWorkers[0];
-                const workerTotalVram = sampleWorker ? sampleWorker.totalVram : 0;
-                const needsDistribution = selectedModel.tpSize > 1 || selectedModel.vramRequiredGB > (workerTotalVram * 0.9); // 90% safety margin
-
-                // If needs distribution but TP=1 defined in model config, we technically have an OOM scenario unless we force distribution
-                // For simulation simplicity: if model is bigger than node, we assume user configured TP or it fails. 
-                // But here we rely on model.tpSize. If model.vramRequiredGB > node.totalVram and model.tpSize == 1, it will fail allocation.
+                // Filter compatible nodes based on VRAM
+                const compatibleNodes = onlineWorkers.filter(n => n.totalVram >= selectedModel.vramRequiredGB);
                 
                 newLog.unshift({ id: `log-${newTime}-${u.id}`, timestamp: newTime, userId: u.id, userName: u.name, userAvatar: u.avatar, userColor: u.color, type: 'PROMPT', text: prompt.text });
 
@@ -61,66 +56,92 @@ export const calculateNextTick = (
                 let errorMsg = "";
                 
                 if (onlineWorkers.length > 0) {
-                    // Check VRAM Capacity for Single Node
-                    if (selectedModel.tpSize === 1 && selectedModel.vramRequiredGB > workerTotalVram) {
-                         errorMsg = `OOM: Model (${selectedModel.vramRequiredGB}GB) exceeds Node VRAM (${workerTotalVram}GB)`;
-                    }
-                    else if (selectedModel.tpSize === 1) {
-                        // Standard Single-Node Placement
-                        const rack1 = onlineWorkers.filter(n => n.rackId === 'rack-1');
-                        const rack2 = onlineWorkers.filter(n => n.rackId === 'rack-2');
-                        
-                        let candidatePool: ClusterNode[] = [];
-                        const rack1Util = rack1.reduce((acc, n) => acc + n.gpuUtil, 0) / (rack1.length || 1);
-                        const rack2Util = rack2.reduce((acc, n) => acc + n.gpuUtil, 0) / (rack2.length || 1);
-
-                        switch (placementStrategy) {
-                            case PlacementStrategy.PACK:
-                                if (rack1.length > 0 && rack1Util < 85) candidatePool = rack1;
-                                else if (rack2.length > 0 && rack2Util < 85) candidatePool = rack2;
-                                else candidatePool = onlineWorkers;
-                                break;
-                            case PlacementStrategy.STRICT_PACK:
-                                if (rack1.length > 0 && rack1Util < 95) candidatePool = rack1;
-                                else candidatePool = []; 
-                                break;
-                            case PlacementStrategy.SPREAD:
-                                candidatePool = onlineWorkers;
-                                break;
-                            default:
-                                candidatePool = onlineWorkers;
-                        }
-
-                        if (candidatePool.length > 0) {
-                            if (lbStrategy === LoadBalancingStrategy.ROUND_ROBIN) {
-                                targetNodeId = candidatePool[(rrIndex = (rrIndex + 1) % candidatePool.length)].id;
-                            } else if (lbStrategy === LoadBalancingStrategy.LEAST_CONNECTIONS) {
-                                const counts = candidatePool.map(w => ({ id: w.id, c: newRequests.filter(r => r.targetNodeId === w.id).length }));
-                                targetNodeId = counts.sort((a, b) => a.c - b.c)[0].id;
-                            } else {
-                                targetNodeId = candidatePool[Math.floor(Math.random() * candidatePool.length)].id;
-                            }
-                            placementSuccess = true;
+                    // Case 1: Single Node Inference
+                    if (selectedModel.tpSize === 1) {
+                        if (compatibleNodes.length === 0) {
+                             errorMsg = `OOM: Model (${selectedModel.vramRequiredGB}GB) too large for any active node.`;
                         } else {
-                            errorMsg = `Placement Strategy ${placementStrategy} found no suitable nodes.`;
+                            // Strategy-based selection within compatible nodes
+                            const rack1 = compatibleNodes.filter(n => n.rackId === 'rack-1');
+                            const rack2 = compatibleNodes.filter(n => n.rackId === 'rack-2');
+                            
+                            let candidatePool: ClusterNode[] = [];
+                            // Simple util average for heuristics
+                            const rack1Util = rack1.length > 0 ? rack1.reduce((acc, n) => acc + n.gpuUtil, 0) / rack1.length : 100;
+                            const rack2Util = rack2.length > 0 ? rack2.reduce((acc, n) => acc + n.gpuUtil, 0) / rack2.length : 100;
+
+                            switch (placementStrategy) {
+                                case PlacementStrategy.PACK:
+                                    // Prefer Rack 1 if not overloaded
+                                    if (rack1.length > 0 && rack1Util < 85) candidatePool = rack1;
+                                    else if (rack2.length > 0 && rack2Util < 85) candidatePool = rack2;
+                                    else candidatePool = compatibleNodes;
+                                    break;
+                                case PlacementStrategy.STRICT_PACK:
+                                    if (rack1.length > 0 && rack1Util < 95) candidatePool = rack1;
+                                    else candidatePool = []; 
+                                    break;
+                                case PlacementStrategy.SPREAD:
+                                    candidatePool = compatibleNodes;
+                                    break;
+                                default:
+                                    candidatePool = compatibleNodes;
+                            }
+
+                            if (candidatePool.length > 0) {
+                                if (lbStrategy === LoadBalancingStrategy.ROUND_ROBIN) {
+                                    targetNodeId = candidatePool[(rrIndex = (rrIndex + 1) % candidatePool.length)].id;
+                                } else if (lbStrategy === LoadBalancingStrategy.LEAST_CONNECTIONS) {
+                                    const counts = candidatePool.map(w => ({ id: w.id, c: newRequests.filter(r => r.targetNodeId === w.id).length }));
+                                    targetNodeId = counts.sort((a, b) => a.c - b.c)[0].id;
+                                } else {
+                                    targetNodeId = candidatePool[Math.floor(Math.random() * candidatePool.length)].id;
+                                }
+                                placementSuccess = true;
+                            } else {
+                                errorMsg = `Placement Strategy ${placementStrategy} found no suitable nodes.`;
+                            }
                         }
                     } else {
-                        // Distributed (TP) Placement Logic
+                        // Case 2: Distributed (TP) Placement Logic
                         const requiredNodes = selectedModel.tpSize;
-                        if (onlineWorkers.length >= requiredNodes) {
-                            // Simple logic: just take the first N available nodes (conceptually a ring)
-                            // Real scheduler would find contiguous blocks.
-                            // We prefer within-rack if possible.
-                            const rack1 = onlineWorkers.filter(n => n.rackId === 'rack-1');
-                            const rack2 = onlineWorkers.filter(n => n.rackId === 'rack-2');
+                        // For TP, we generally assume homogenous chunks, but in a hybrid cluster, we should try to pick 
+                        // nodes of the same type if possible.
+                        
+                        // Group by GPU Type
+                        const nodesByGpu = compatibleNodes.reduce((acc, node) => {
+                            if (!acc[node.gpuType]) acc[node.gpuType] = [];
+                            acc[node.gpuType].push(node);
+                            return acc;
+                        }, {} as Record<string, ClusterNode[]>);
+
+                        let bestGroup: ClusterNode[] = [];
+                        
+                        // Try to find a group of same-type GPUs that fits the TP size
+                        for (const type in nodesByGpu) {
+                             if (nodesByGpu[type].length >= requiredNodes) {
+                                 bestGroup = nodesByGpu[type];
+                                 break;
+                             }
+                        }
+                        
+                        // Fallback: Mixed bag (not ideal for TP but allowed in sim)
+                        if (bestGroup.length === 0 && compatibleNodes.length >= requiredNodes) {
+                            bestGroup = compatibleNodes;
+                        }
+
+                        if (bestGroup.length >= requiredNodes) {
+                            // Try to optimize for rack locality within the group
+                            const rack1 = bestGroup.filter(n => n.rackId === 'rack-1');
+                            const rack2 = bestGroup.filter(n => n.rackId === 'rack-2');
                             
                             if (rack1.length >= requiredNodes) targetNodeIds = rack1.slice(0, requiredNodes).map(n => n.id);
                             else if (rack2.length >= requiredNodes) targetNodeIds = rack2.slice(0, requiredNodes).map(n => n.id);
-                            else targetNodeIds = onlineWorkers.slice(0, requiredNodes).map(n => n.id);
+                            else targetNodeIds = bestGroup.slice(0, requiredNodes).map(n => n.id);
                             
                             placementSuccess = true;
                         } else {
-                            errorMsg = `Insufficient nodes for TP=${requiredNodes}`;
+                            errorMsg = `Insufficient capable nodes for TP=${requiredNodes}`;
                         }
                     }
 
@@ -325,14 +346,7 @@ export const calculateNextTick = (
              const nodeReqs = activeReqs.filter(r => r.modelId === mid);
              
              // If this node is part of a TP group or hosting the model solo, it needs weights loaded
-             const isHostingModel = activeReqs.length > 0; // Simplification: models load on-demand or stick around. 
-             // Better sim: Assume all active models are loaded on all compatible nodes? No, too much VRAM.
-             // Current assumption: If model ID is in 'activeModelIds', we assume it's loaded on the cluster.
-             // To visualize OOM, we need to be stricter.
-             
-             // Let's calculate VRAM usage based on "Allocated Models".
-             // For the sim, we assume if a model is "Active" in the header, it tries to load on ALL nodes (Data Parallel)
-             // OR if it's TP>1, it loads on ALL nodes (because we only have one cluster).
+             const isHostingModel = activeReqs.length > 0; 
              
              let modelWeightGB = 0;
              if (m.tpSize > 1) {
@@ -344,10 +358,17 @@ export const calculateNextTick = (
              // KV Cache dynamic usage
              const kvCacheGB = nodeReqs.length * 0.5; // 0.5GB per active request context
 
-             activeVramGB += modelWeightGB + kvCacheGB;
-             
-             if (isHostingModel || m.tpSize > 1) {
+             // Only count Model VRAM if it's actively hosting or we assume strict allocation
+             if (isHostingModel) {
+                activeVramGB += modelWeightGB + kvCacheGB;
                 currentTickModelVram[mid] = (currentTickModelVram[mid] || 0) + modelWeightGB + kvCacheGB;
+             } else if (m.tpSize > 1) {
+                // For TP models, if this node is capable and "part of the pool", it might have weights loaded
+                // For simulation simplicity, we only show VRAM if actively processing or recently used
+                // But for realistic dashboard, idle nodes in a TP group still hold weights. 
+                // We'll assume weights are loaded if node is "active" (Online) and matches the TP type
+                // But that logic gets complex with Hybrid clusters.
+                // Simplification: Only show VRAM if active requests.
              }
         });
         

@@ -63,6 +63,19 @@ export interface ClusterNode {
   gpusCount: number;
 }
 
+export interface NodeGroupSpec {
+  count: number;
+  gpuType: GpuType;
+  gpusPerNode: number;
+}
+
+export interface HardwareTemplate {
+  id: string;
+  name: string;
+  description: string;
+  specs: NodeGroupSpec[];
+}
+
 export interface RequestPacket {
   id: string;
   modelId: string;

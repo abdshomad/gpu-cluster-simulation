@@ -1,5 +1,6 @@
 
-import { ClusterNode, NodeType, NodeStatus, NetworkSpeed, GpuSpec, GpuType } from './types';
+
+import { ClusterNode, NodeType, NodeStatus, NetworkSpeed, GpuSpec, GpuType, HardwareTemplate, NodeGroupSpec } from './types';
 
 export * from './data/models';
 export * from './data/users';
@@ -20,26 +21,32 @@ export const GPU_SPECS: Record<GpuType, GpuSpec> = {
   'B200': { label: 'NVIDIA Blackwell', vram: 192, perfFactor: 5.0, memBandwidth: 8000 },
 };
 
-export const generateCluster = (nodeCount: number, gpusPerNode: number, gpuType: GpuType): ClusterNode[] => {
-  const spec = GPU_SPECS[gpuType];
-  
-  // Generate Workers
-  const workers: ClusterNode[] = Array.from({ length: nodeCount }, (_, i) => ({
-    id: `server-${i + 1}`,
-    type: NodeType.WORKER,
-    name: `Server ${i + 1} (${gpusPerNode}x ${gpuType})`,
-    gpuUtil: 0,
-    vramUtil: 0,
-    netUtil: 0,
-    temp: 30,
-    status: NodeStatus.IDLE,
-    activeTokens: 0,
-    totalVram: spec.vram * gpusPerNode,
-    rackId: i < Math.ceil(nodeCount / 2) ? 'rack-1' : 'rack-2',
-    gpuType: gpuType,
-    gpusCount: gpusPerNode
-  }));
+export const CLUSTER_TEMPLATES: HardwareTemplate[] = [
+  {
+    id: 'standard-a100',
+    name: 'Standard HPC (A100)',
+    description: '10x Servers w/ 2x A100-80GB',
+    specs: [{ count: 10, gpuType: 'A100', gpusPerNode: 2 }]
+  },
+  {
+    id: 'dense-l40s',
+    name: 'Visual/Inference (L40S)',
+    description: '20x Servers w/ 8x L40S-48GB',
+    specs: [{ count: 20, gpuType: 'L40S', gpusPerNode: 8 }]
+  },
+  {
+    id: 'hybrid-cluster',
+    name: 'Hybrid Train/Infer',
+    description: '10x A100 (Training) + 20x L40S (Inference)',
+    specs: [
+      { count: 10, gpuType: 'A100', gpusPerNode: 2 },
+      { count: 20, gpuType: 'L40S', gpusPerNode: 4 }
+    ]
+  }
+];
 
+export const generateCluster = (specs: NodeGroupSpec[]): ClusterNode[] => {
+  
   // Head Node
   const head: ClusterNode = {
     id: 'head-1',
@@ -56,10 +63,38 @@ export const generateCluster = (nodeCount: number, gpusPerNode: number, gpuType:
     gpusCount: 0
   };
 
+  const workers: ClusterNode[] = [];
+  let globalIndex = 1;
+
+  specs.forEach((spec) => {
+      const gpuData = GPU_SPECS[spec.gpuType];
+      for (let i = 0; i < spec.count; i++) {
+          workers.push({
+            id: `server-${globalIndex}`,
+            type: NodeType.WORKER,
+            name: `Server ${globalIndex} (${spec.gpusPerNode}x ${spec.gpuType})`,
+            gpuUtil: 0,
+            vramUtil: 0,
+            netUtil: 0,
+            temp: 30,
+            status: NodeStatus.IDLE,
+            activeTokens: 0,
+            totalVram: gpuData.vram * spec.gpusPerNode,
+            // Naive racking: Alternate racks every 10 nodes or split evenly?
+            // Let's split evenly based on total count logic or just alternate.
+            // Simple logic: Odd/Even for High Availability simulation
+            rackId: globalIndex % 2 !== 0 ? 'rack-1' : 'rack-2',
+            gpuType: spec.gpuType,
+            gpusCount: spec.gpusPerNode
+          });
+          globalIndex++;
+      }
+  });
+
   return [head, ...workers];
 };
 
-export const INITIAL_NODES = generateCluster(10, 2, 'A100');
+export const INITIAL_NODES = generateCluster([{ count: 10, gpuType: 'A100', gpusPerNode: 2 }]);
 
 export const COLORS = {
   ray: '#0284c7',
