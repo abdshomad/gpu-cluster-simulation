@@ -3,12 +3,14 @@ import { SimulationState, NodeType, NodeStatus, NetworkSpeed, RequestStage } fro
 import { COLORS, MODELS, NETWORK_CAPACITY } from '../constants';
 import { drawGrid, drawCube, drawPacket, toIso } from './canvasDrawing';
 
-const drawRack = (ctx: CanvasRenderingContext2D, label: string, rowIndex: number) => {
+const drawRack = (ctx: CanvasRenderingContext2D, label: string, rowIndex: number, heightScale: number = 1) => {
     const yCenter = (rowIndex - 0.5) * 135;
-    const p1 = toIso(-250, yCenter - 60, -10);
-    const p2 = toIso(250, yCenter - 60, -10);
-    const p3 = toIso(250, yCenter + 60, -10);
-    const p4 = toIso(-250, yCenter + 60, -10);
+    // Dynamically size rack based on width required? For now standard width
+    const width = 250; 
+    const p1 = toIso(-width, yCenter - 60 * heightScale, -10);
+    const p2 = toIso(width, yCenter - 60 * heightScale, -10);
+    const p3 = toIso(width, yCenter + 60 * heightScale, -10);
+    const p4 = toIso(-width, yCenter + 60 * heightScale, -10);
     
     ctx.fillStyle = '#1e293b';
     ctx.globalAlpha = 0.3;
@@ -17,7 +19,7 @@ const drawRack = (ctx: CanvasRenderingContext2D, label: string, rowIndex: number
     
     ctx.strokeStyle = '#475569'; ctx.lineWidth = 1; ctx.setLineDash([4, 4]); ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1;
 
-    const labelPos = toIso(-280, yCenter, 0);
+    const labelPos = toIso(-(width + 30), yCenter, 0);
     ctx.fillStyle = '#64748b'; ctx.font = 'bold 10px JetBrains Mono'; ctx.textAlign = 'right'; ctx.fillText(label, labelPos.x, labelPos.y);
 };
 
@@ -31,13 +33,37 @@ export const renderCluster = (
     ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
     ctx.scale(dpr, dpr); ctx.translate(width / 2, height / 2 + 100);
     
-    drawGrid(ctx, 350, 7);
-    drawRack(ctx, "RACK 1 (Zone A)", 0);
-    drawRack(ctx, "RACK 2 (Zone B)", 1);
-    
+    // Determine layout based on node count
     const workers = state.nodes.filter(n => n.type === NodeType.WORKER);
+    const totalWorkers = workers.length;
+    const nodesPerRow = Math.ceil(totalWorkers / 2); // Split into 2 racks
+    const rackScale = nodesPerRow > 6 ? 1.2 : 1.0; // Make racks slightly bigger if lots of nodes
+
+    drawGrid(ctx, 350 * rackScale, 7);
+    
+    drawRack(ctx, "RACK 1 (Zone A)", 0, rackScale);
+    drawRack(ctx, "RACK 2 (Zone B)", 1, rackScale);
+    
     const head = { x: 0, y: -250, z: 100 };
-    const wPos = workers.map((w, i) => ({ id: w.id, x: ((i % 5) - 2) * 90, y: (Math.floor(i / 5) - 0.5) * 135, z: 0, node: w }));
+    
+    // Calculate positions dynamically
+    const wPos = workers.map((w, i) => {
+        const isRack2 = i >= nodesPerRow;
+        const rowIdx = isRack2 ? 1 : 0;
+        const colIdx = isRack2 ? (i - nodesPerRow) : i;
+        
+        // Center the nodes in the rack
+        const rowWidth = 90 * nodesPerRow;
+        const startX = -((nodesPerRow - 1) * 90) / 2;
+        
+        return { 
+            id: w.id, 
+            x: startX + (colIdx * 90), 
+            y: (rowIdx - 0.5) * 135, 
+            z: 0, 
+            node: w 
+        };
+    });
 
     // 1. Static Connections (Control Plane)
     wPos.forEach(wp => {
@@ -50,10 +76,15 @@ export const renderCluster = (
 
     const activeIds = state.activeModelIds;
     const isDist = activeIds.some(id => MODELS[id]?.tpSize > 1);
-    const isNvLink = activeIds.some(id => MODELS[id]?.tpSize === 1 && MODELS[id]?.vramPerGpu > 25);
+    // Now checks if any active model requires large VRAM relative to node capability
+    const isNvLink = activeIds.some(id => {
+         // Heuristic: visual NVLink activation if VRAM usage is high on a single node
+         const m = MODELS[id];
+         return m.tpSize === 1 && m.vramRequiredGB > 40; 
+    });
+    
     const time = Date.now() / 1000;
     const capacity = NETWORK_CAPACITY[netSpeed];
-    const latency = capacity.latency;
     
     let animSpeed = 1.0;
     if (netSpeed === NetworkSpeed.IB_400G) animSpeed = 2.5;
@@ -65,13 +96,9 @@ export const renderCluster = (
       const dashPattern = netSpeed === NetworkSpeed.ETH_10G ? [12, 8] : [8, 4];
       ctx.setLineDash(dashPattern); ctx.lineDashOffset = -time * 50 * animSpeed; 
       
-      // We need to draw the ring connecting all active workers since the large model (TP=10) uses all of them.
-      // If we had multiple smaller TP groups, we would draw multiple rings.
-      // For this sim, assuming TP10 means one large ring.
       const activeWorkerPositions = wPos.filter(wp => wp.node.status !== NodeStatus.OFFLINE);
       
       if (activeWorkerPositions.length > 1) {
-          // Draw Ring Topology
           ctx.strokeStyle = '#c084fc'; ctx.lineWidth = 3; 
           ctx.shadowColor = '#a855f7'; ctx.shadowBlur = 10;
           
@@ -89,7 +116,6 @@ export const renderCluster = (
               const px = p1.x + (p2.x - p1.x) * pt;
               const py = p1.y + (p2.y - p1.y) * pt;
               
-              // Draw particle separately to not mess up the line path
               ctx.save();
               ctx.fillStyle = '#f0abfc'; 
               ctx.shadowBlur = 15; ctx.shadowColor = '#e879f9';
@@ -99,7 +125,6 @@ export const renderCluster = (
           ctx.closePath();
           ctx.stroke();
 
-          // Label
           const centerNode = activeWorkerPositions[Math.floor(activeWorkerPositions.length / 2)];
           const lbl = toIso(centerNode.x, centerNode.y, 80);
           ctx.fillStyle = '#e879f9'; ctx.font = 'bold 11px Inter'; ctx.textAlign = 'center'; 
@@ -124,8 +149,6 @@ export const renderCluster = (
           return;
       }
 
-      // Determine Compute Color based on Request Stage
-      // Check if this node is handling any PREFILL requests (Targeted or part of TP group)
       const isPrefilling = state.requests.some(r => 
           (r.targetNodeId === wp.id || (r.targetNodeIds && r.targetNodeIds.includes(wp.id))) && 
           r.stage === RequestStage.PREFILL
@@ -141,8 +164,15 @@ export const renderCluster = (
 
       const shake = active && (isDist || isNvLink) ? (Math.random() - 0.5) * 2 : 0;
       drawCube(ctx, wp.x, wp.y, wp.z, 30, '#334155', false, wp.node.name.split(' ')[1], 0.5);
-      drawCube(ctx, wp.x-10+shake, wp.y+shake, wp.z+15, 10, COLORS.vllm, active, '', 1);
-      drawCube(ctx, wp.x+10+shake, wp.y+shake, wp.z+15, 10, COLORS.vllm, active, '', 1);
+      
+      // Draw Small cubes for GPUs. If gpusCount is small, draw individually. If large, just draw a block representation.
+      const gpuCount = wp.node.gpusCount || 2;
+      const visualGpus = Math.min(gpuCount, 4); // Cap visual complexity
+      
+      for(let g=0; g<visualGpus; g++) {
+          const offset = (g - (visualGpus-1)/2) * 10;
+          drawCube(ctx, wp.x + offset + shake, wp.y + shake, wp.z + 15, 8, COLORS.vllm, active, '', 1);
+      }
       
       // Metrics Bars
       const drawBar = (val: number, offX: number, hMax: number, cNorm: string, cHigh: string, label?: string) => {
@@ -158,17 +188,15 @@ export const renderCluster = (
       drawBar(wp.node.vramUtil, 0, 40, '#38bdf8', '#fb7185');
       drawBar(wp.node.netUtil, 18, 25, '#818cf8', '#ef4444', '!');
       
-      // Draw Prefill "Loading" Indicator
       if (isPrefilling) {
            const ind = toIso(wp.x, wp.y, wp.z + 50);
            ctx.fillStyle = '#facc15'; ctx.beginPath(); ctx.arc(ind.x, ind.y, 3, 0, Math.PI*2); ctx.fill();
       }
     });
 
-    // 4. Request Packets (Only Draw during TRANSFER stage)
+    // 4. Request Packets
     state.requests.filter(r => r.stage === RequestStage.TRANSFER).forEach(req => {
        if (req.parallelShards > 1 && req.targetNodeIds) {
-           // Draw packet traveling to ALL nodes in the TP group
            req.targetNodeIds.forEach(targetId => {
                const t = wPos.find(w => w.id === targetId);
                if(t && t.node.status !== NodeStatus.OFFLINE) {

@@ -36,6 +36,15 @@ export enum RequestStage {
   DECODE = 'DECODE'      // Generating tokens
 }
 
+export type GpuType = 'L4' | 'L40S' | 'A100' | 'H100' | 'H200' | 'B200';
+
+export interface GpuSpec {
+  label: string;
+  vram: number; // GB per GPU
+  perfFactor: number; // Relative compute multiplier (A100 = 1.0)
+  memBandwidth: number; // GB/s
+}
+
 export interface ClusterNode {
   id: string;
   type: NodeType;
@@ -46,8 +55,12 @@ export interface ClusterNode {
   temp: number; // Celsius
   status: NodeStatus;
   activeTokens: number; // Currently processing tokens
-  totalVram: number; // Total VRAM in GB
+  totalVram: number; // Total VRAM in GB (gpusPerNode * gpuVram)
   rackId?: string; // 'rack-1' or 'rack-2'
+  
+  // Hardware Config
+  gpuType: GpuType;
+  gpusCount: number;
 }
 
 export interface RequestPacket {
@@ -90,7 +103,7 @@ export interface ModelConfig {
   id: string;
   name: string;
   paramSize: string;
-  vramPerGpu: number; // Approximate % usage on A100
+  vramRequiredGB: number; // Absolute Memory footprint in GB
   tpSize: number; // Tensor Parallel size (1 = single gpu, >1 = distributed)
   tokensPerSec: number; // Base speed factor (Decode)
   description: string;
@@ -115,6 +128,25 @@ export interface VirtualUser {
   totalCost: number; // Accumulated cost in $
   totalTokens: number; // Accumulated tokens used
   requestCount: number; // Total requests made
+}
+
+// The "Prometheus" style metric (Low Cardinality)
+export interface ClusterMetric {
+  id: string;
+  label: string;
+  value: number;
+  unit: string;
+  trend: 'up' | 'down' | 'stable';
+}
+
+// The "Loki" style log aggregate (High Cardinality)
+export interface UserBillingLog {
+  userId: string;
+  userName: string;
+  requestCount: number;
+  totalTokens: number;
+  estimatedCost: number; // e.g. $0.002 per 1k tokens
+  lastActive: string;
 }
 
 export interface LogEntry {

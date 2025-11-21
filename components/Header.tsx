@@ -1,7 +1,8 @@
+
 import React, { useState, useRef, useEffect } from 'react';
-import { Activity, Database, Workflow, BookOpen, Play, Square, Users, ChevronDown, CheckSquare, Square as SquareIcon, Lock, Network, Layers } from 'lucide-react';
-import { MODELS, NETWORK_CAPACITY } from '../constants';
-import { LoadBalancingStrategy, NetworkSpeed, PlacementStrategy } from '../types';
+import { Activity, Database, Workflow, BookOpen, Play, Square, Users, ChevronDown, CheckSquare, Square as SquareIcon, Lock, Network, Layers, Cpu, Settings } from 'lucide-react';
+import { MODELS, NETWORK_CAPACITY, GPU_SPECS } from '../constants';
+import { LoadBalancingStrategy, NetworkSpeed, PlacementStrategy, GpuType } from '../types';
 
 interface Props {
     activeModelIds: string[];
@@ -18,6 +19,12 @@ interface Props {
     setIsRunning: (v: boolean) => void;
     targetUserCount: number;
     setTargetUserCount: (n: number) => void;
+    
+    // Hardware Config props (optional to maintain backward compat if needed, but we'll pass them from App)
+    nodeCount?: number;
+    gpusPerNode?: number;
+    gpuType?: GpuType;
+    updateHardware?: (count: number, gpus: number, type: GpuType) => void;
 }
 
 const Header: React.FC<Props> = ({ 
@@ -27,18 +34,23 @@ const Header: React.FC<Props> = ({
     placementStrategy, setPlacementStrategy,
     tutorialStep, setTutorialStep, 
     isRunning, setIsRunning, 
-    targetUserCount, setTargetUserCount 
+    targetUserCount, setTargetUserCount,
+    nodeCount = 10, gpusPerNode = 2, gpuType = 'A100', updateHardware
 }) => {
     const [isModelDropdownOpen, setIsModelDropdownOpen] = useState(false);
+    const [isHardwareDropdownOpen, setIsHardwareDropdownOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
+    const hardwareRef = useRef<HTMLDivElement>(null);
     
-    // Determine if distributed strategy is forced (if any active model is TP > 1)
     const isDistributed = activeModelIds.some(id => MODELS[id].tpSize > 1);
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
                 setIsModelDropdownOpen(false);
+            }
+            if (hardwareRef.current && !hardwareRef.current.contains(event.target as Node)) {
+                setIsHardwareDropdownOpen(false);
             }
         };
         document.addEventListener('mousedown', handleClickOutside);
@@ -58,6 +70,70 @@ const Header: React.FC<Props> = ({
                 <h1 className="font-bold text-lg tracking-tight hidden sm:block">Ray & vLLM <span className="font-light text-slate-400">Sim</span></h1>
             </div>
             <div className="flex items-center gap-2 md:gap-4 flex-1 justify-end min-w-0">
+                
+                {/* Hardware Config Dropdown */}
+                <div className="relative shrink-0 hidden xl:block" ref={hardwareRef}>
+                    <button 
+                        onClick={() => setIsHardwareDropdownOpen(!isHardwareDropdownOpen)}
+                        className="flex items-center gap-2 bg-slate-800 p-1.5 px-3 rounded-lg border border-slate-700 hover:border-slate-600 transition-colors min-w-[160px] justify-between group"
+                    >
+                         <div className="flex items-center gap-2 min-w-0 text-slate-300">
+                            <Cpu size={14} className="text-orange-500" />
+                            <div className="flex flex-col items-start text-xs">
+                                <span className="font-bold">{nodeCount} Nodes</span>
+                                <span className="text-[10px] text-slate-500">{gpusPerNode}x {gpuType}</span>
+                            </div>
+                        </div>
+                        <Settings size={12} className="text-slate-500" />
+                    </button>
+                    
+                    {isHardwareDropdownOpen && updateHardware && (
+                        <div className="absolute top-full right-0 mt-2 w-72 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl z-50 p-4 animate-in zoom-in-95 duration-100 ring-1 ring-white/5 space-y-4">
+                            <div>
+                                <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1.5">Cluster Size (Nodes)</label>
+                                <div className="flex items-center gap-3">
+                                    <input 
+                                        type="range" min="2" max="24" step="2" 
+                                        value={nodeCount} 
+                                        onChange={(e) => updateHardware(parseInt(e.target.value), gpusPerNode, gpuType)} 
+                                        className="w-full h-1 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-orange-500"
+                                    />
+                                    <span className="text-xs font-mono font-bold text-slate-300 w-6">{nodeCount}</span>
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1.5">GPUs per Node</label>
+                                <div className="flex items-center gap-3">
+                                    <input 
+                                        type="range" min="1" max="8" step="1" 
+                                        value={gpusPerNode} 
+                                        onChange={(e) => updateHardware(nodeCount, parseInt(e.target.value), gpuType)} 
+                                        className="w-full h-1 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-orange-500"
+                                    />
+                                    <span className="text-xs font-mono font-bold text-slate-300 w-6">{gpusPerNode}</span>
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1.5">GPU Type</label>
+                                <div className="grid grid-cols-2 gap-2">
+                                    {Object.entries(GPU_SPECS).map(([key, spec]) => (
+                                        <button 
+                                            key={key}
+                                            onClick={() => updateHardware(nodeCount, gpusPerNode, key as GpuType)}
+                                            className={`p-2 rounded text-xs border text-left transition-all ${gpuType === key ? 'bg-orange-500/20 border-orange-500 text-orange-200' : 'bg-slate-800 border-slate-700 text-slate-400 hover:bg-slate-700'}`}
+                                        >
+                                            <div className="font-bold">{key}</div>
+                                            <div className="text-[9px] opacity-70">{spec.vram}GB VRAM</div>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+
                 {/* Model Selector Dropdown */}
                 <div id="model-selector" className="relative shrink-0" ref={dropdownRef}>
                     <button 

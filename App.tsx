@@ -1,5 +1,4 @@
 
-
 import React, { useState } from 'react';
 import { Server, Activity } from 'lucide-react';
 import { MODELS } from './constants';
@@ -20,7 +19,8 @@ const App: React.FC = () => {
     targetUserCount, setTargetUserCount, 
     lbStrategy, setLbStrategy,
     networkSpeed, setNetworkSpeed,
-    placementStrategy, setPlacementStrategy
+    placementStrategy, setPlacementStrategy,
+    nodeCount, gpusPerNode, gpuType, updateHardware
   } = useSimulation();
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [tutorialStep, setTutorialStep] = useState<number | null>(null);
@@ -75,6 +75,7 @@ const App: React.FC = () => {
         tutorialStep={tutorialStep} setTutorialStep={setTutorialStep}
         isRunning={isRunning} setIsRunning={setIsRunning}
         targetUserCount={targetUserCount} setTargetUserCount={setTargetUserCount}
+        nodeCount={nodeCount} gpusPerNode={gpusPerNode} gpuType={gpuType} updateHardware={updateHardware}
       />
       {tutorialStep !== null && <TutorialOverlay step={tutorialStep} setStep={(s) => setTutorialStep(s)} />}
       {selectedNodeId && (
@@ -90,7 +91,7 @@ const App: React.FC = () => {
         <div className="lg:col-span-8 space-y-6">
             <section id="cluster-view">
                 <div className="flex justify-between items-center mb-3">
-                    <h2 className="text-xl font-semibold flex items-center gap-2"><Server size={20} className="text-sky-400" /> Cluster Topology <span className="text-sm text-slate-500 font-normal">(10 Workers)</span></h2>
+                    <h2 className="text-xl font-semibold flex items-center gap-2"><Server size={20} className="text-sky-400" /> Cluster Topology <span className="text-sm text-slate-500 font-normal">({nodeCount} Workers)</span></h2>
                     <div id="cluster-stats-header" className="flex gap-3 text-xs">
                         <div className="flex flex-col items-end"><span className="text-slate-500 uppercase">Active Models</span><span className="font-bold text-sky-400">{getActiveModelNames()}</span></div>
                         <div className="flex flex-col items-end"><span className="text-slate-500 uppercase">Est. Cost</span><span className="font-bold text-emerald-400">${simulationState.metricsHistory.slice(-1)[0]?.estimatedCostPerHour.toFixed(2) || '0.00'}/hr</span></div>

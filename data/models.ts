@@ -6,7 +6,7 @@ export const MODELS: Record<string, ModelConfig> = {
     id: 'tiny-llama',
     name: 'TinyLlama 1.1B',
     paramSize: '1.1B',
-    vramPerGpu: 8,
+    vramRequiredGB: 2.5,
     tpSize: 1,
     tokensPerSec: 180,
     description: 'Small, fast model. Replicated across all servers for high throughput load balancing.',
@@ -16,7 +16,7 @@ export const MODELS: Record<string, ModelConfig> = {
     id: 'gemma-2-27b',
     name: 'Gemma 2 27B',
     paramSize: '27B',
-    vramPerGpu: 20,
+    vramRequiredGB: 56, // FP16
     tpSize: 1,
     tokensPerSec: 120,
     description: 'Efficient Google model. High throughput and reasoning balance on single nodes.',
@@ -26,17 +26,17 @@ export const MODELS: Record<string, ModelConfig> = {
     id: 'llama-3-70b',
     name: 'Meta Llama 3 70B',
     paramSize: '70B',
-    vramPerGpu: 45,
+    vramRequiredGB: 140, // FP16
     tpSize: 1,
     tokensPerSec: 75,
-    description: 'The open-weight standard. Excellent balance of performance and cost on single nodes.',
+    description: 'The open-weight standard. Needs high VRAM (A100/H100) or quantization.',
     costPer1kTokens: 0.0007
   },
   'qwen-2.5-72b': {
     id: 'qwen-2.5-72b',
     name: 'Qwen 2.5 72B',
     paramSize: '72B',
-    vramPerGpu: 48,
+    vramRequiredGB: 144,
     tpSize: 1,
     tokensPerSec: 60,
     description: 'Powerful open weights model. Maxes out single-node VRAM capacity.',
@@ -46,18 +46,18 @@ export const MODELS: Record<string, ModelConfig> = {
     id: 'command-r-plus',
     name: 'Command R+',
     paramSize: '104B',
-    vramPerGpu: 60,
+    vramRequiredGB: 210, // Needs multi-gpu single node or quantization
     tpSize: 1,
     tokensPerSec: 45,
-    description: 'RAG-optimized powerhouse. Requires significant VRAM headroom.',
+    description: 'RAG-optimized powerhouse. Requires ~210GB VRAM.',
     costPer1kTokens: 0.001
   },
   'mistral-large': {
     id: 'mistral-large',
     name: 'Mistral Large 2',
     paramSize: '123B',
-    vramPerGpu: 65,
-    tpSize: 1,
+    vramRequiredGB: 246,
+    tpSize: 1, // Might need TP on smaller cards, but assuming big nodes
     tokensPerSec: 50,
     description: 'Flagship model from Mistral AI. Strong reasoning and coding capabilities.',
     costPer1kTokens: 0.003
@@ -66,28 +66,28 @@ export const MODELS: Record<string, ModelConfig> = {
     id: 'mixtral-8x22b',
     name: 'Mixtral 8x22B',
     paramSize: '141B (MoE)',
-    vramPerGpu: 80,
+    vramRequiredGB: 280, // MoE active params lower, but weights need VRAM
     tpSize: 1,
     tokensPerSec: 40,
-    description: 'Massive MoE model. Pushes the absolute limits of a single 2x A100 node.',
+    description: 'Massive MoE model. Pushes the absolute limits of a single node.',
     costPer1kTokens: 0.0012
   },
   'llama-405b': {
     id: 'llama-405b',
     name: 'Meta Llama 3.1 405B',
     paramSize: '405B',
-    vramPerGpu: 55, // Approx 55% of 160GB * 10 nodes = 880GB (fits 810GB weights + KV)
-    tpSize: 10,
+    vramRequiredGB: 820, // FP16
+    tpSize: 8, // Distributed across 8+ GPUs minimum
     tokensPerSec: 25,
-    description: 'Massive frontier model. Requires sharding across the entire cluster (Tensor Parallelism).',
+    description: 'Massive frontier model. Requires sharding across the entire cluster.',
     costPer1kTokens: 0.01
   },
   'deepseek-r1': {
     id: 'deepseek-r1',
     name: 'DeepSeek R1',
     paramSize: '671B (MoE)',
-    vramPerGpu: 65,
-    tpSize: 10,
+    vramRequiredGB: 700, // Compressed/MoE usually run somewhat smaller but still huge
+    tpSize: 8,
     tokensPerSec: 20,
     description: 'State-of-the-art reasoning model. Massive MoE requiring full cluster distribution.',
     costPer1kTokens: 0.008
