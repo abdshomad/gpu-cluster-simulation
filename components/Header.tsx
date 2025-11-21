@@ -1,7 +1,4 @@
 
-
-
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Activity, Database, Workflow, BookOpen, Play, Square, Users, ChevronDown, CheckSquare, Square as SquareIcon, Lock, Network, Layers, Cpu, Settings, LayoutTemplate } from 'lucide-react';
 import { MODELS, NETWORK_CAPACITY, GPU_SPECS, CLUSTER_TEMPLATES } from '../constants';
@@ -83,7 +80,7 @@ const Header: React.FC<Props> = ({
                 
                 {/* Templates Dropdown */}
                 {applyTemplate && (
-                    <div id="header-templates" className="relative shrink-0 hidden xl:block" ref={templateRef}>
+                    <div id="header-templates" className="relative shrink-0 hidden md:block" ref={templateRef}>
                         <button 
                             onClick={() => setIsTemplateDropdownOpen(!isTemplateDropdownOpen)}
                             className="flex items-center gap-2 bg-slate-800 p-1.5 px-3 rounded-lg border border-slate-700 hover:border-slate-600 transition-colors group"
@@ -112,7 +109,7 @@ const Header: React.FC<Props> = ({
                 )}
 
                 {/* Hardware Config Dropdown */}
-                <div id="header-hardware" className="relative shrink-0 hidden xl:block" ref={hardwareRef}>
+                <div id="header-hardware" className="relative shrink-0 hidden md:block" ref={hardwareRef}>
                     <button 
                         onClick={() => setIsHardwareDropdownOpen(!isHardwareDropdownOpen)}
                         className="flex items-center gap-2 bg-slate-800 p-1.5 px-3 rounded-lg border border-slate-700 hover:border-slate-600 transition-colors min-w-[160px] justify-between group"
@@ -138,7 +135,7 @@ const Header: React.FC<Props> = ({
                                     <input 
                                         type="range" min="2" max="24" step="2" 
                                         value={nodeCount} 
-                                        onChange={(e) => updateHardware(parseInt(e.target.value), gpusPerNode, gpuType)} 
+                                        onChange={(e) => updateHardware(parseInt(e.target.value), gpusPerNode, gpuType!)} 
                                         className="w-full h-1 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-orange-500"
                                     />
                                     <span className="text-xs font-mono font-bold text-slate-300 w-6">{nodeCount}</span>
@@ -151,7 +148,7 @@ const Header: React.FC<Props> = ({
                                     <input 
                                         type="range" min="1" max="8" step="1" 
                                         value={gpusPerNode} 
-                                        onChange={(e) => updateHardware(nodeCount, parseInt(e.target.value), gpuType)} 
+                                        onChange={(e) => updateHardware(nodeCount!, parseInt(e.target.value), gpuType!)} 
                                         className="w-full h-1 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-orange-500"
                                     />
                                     <span className="text-xs font-mono font-bold text-slate-300 w-6">{gpusPerNode}</span>
@@ -164,7 +161,7 @@ const Header: React.FC<Props> = ({
                                     {Object.entries(GPU_SPECS).map(([key, spec]) => (
                                         <button 
                                             key={key}
-                                            onClick={() => updateHardware(nodeCount, gpusPerNode, key as GpuType)}
+                                            onClick={() => updateHardware(nodeCount!, gpusPerNode!, key as GpuType)}
                                             className={`p-2 rounded text-xs border text-left transition-all ${gpuType === key ? 'bg-orange-500/20 border-orange-500 text-orange-200' : 'bg-slate-800 border-slate-700 text-slate-400 hover:bg-slate-700'}`}
                                         >
                                             <div className="font-bold">{key}</div>
@@ -230,7 +227,7 @@ const Header: React.FC<Props> = ({
                 </div>
 
                 {/* Network Speed Selector */}
-                <div id="header-network" className="hidden xl:flex items-center p-1 rounded-lg border bg-slate-800 border-slate-700 gap-2">
+                <div id="header-network" className="hidden 2xl:flex items-center p-1 rounded-lg border bg-slate-800 border-slate-700 gap-2">
                      <div className="px-2 flex items-center gap-1 text-slate-500">
                         <Network size={12} />
                         <span className="text-[10px] font-bold uppercase">Net</span>
@@ -248,7 +245,7 @@ const Header: React.FC<Props> = ({
 
                 {/* Placement Strategy Selector */}
                 {setPlacementStrategy && (
-                    <div className="hidden lg:flex items-center p-1 rounded-lg border bg-slate-800 border-slate-700 gap-2">
+                    <div className="hidden 2xl:flex items-center p-1 rounded-lg border bg-slate-800 border-slate-700 gap-2">
                         <div className="px-2 flex items-center gap-1 text-slate-500">
                             <Layers size={12} />
                             <span className="text-[10px] font-bold uppercase">Place</span>
@@ -266,7 +263,7 @@ const Header: React.FC<Props> = ({
                 )}
 
                 {/* Load Balancing Strategy Selector */}
-                <div id="header-lb" className="relative group hidden xl:block">
+                <div id="header-lb" className="relative group hidden 2xl:block">
                     <div className={`flex items-center p-1 rounded-lg border transition-colors ${
                         isDistributed 
                             ? 'bg-purple-500/10 border-purple-500/30' 

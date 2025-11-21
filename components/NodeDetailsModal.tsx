@@ -92,7 +92,7 @@ const NodeDetailsModal: React.FC<Props> = ({ node, onClose, metricsHistory, onTo
                     <span className={`text-[10px] font-bold uppercase ${isOffline ? 'text-red-500' : 'text-slate-500'}`}>{node.status}</span>
                     {node.type === NodeType.WORKER && (
                         <span className="ml-2 px-1.5 py-0.5 rounded bg-slate-800 text-[10px] text-slate-400 border border-slate-700">
-                            2x A100 • {node.totalVram}GB
+                            {node.gpusCount}x {node.gpuType} • {node.totalVram}GB
                         </span>
                     )}
                 </div>
