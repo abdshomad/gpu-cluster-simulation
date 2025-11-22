@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Activity, Database, Workflow, BookOpen, Play, Square, Users, ChevronDown, CheckSquare, Square as SquareIcon, Lock, Network, Layers, Cpu, Settings, LayoutTemplate, Zap } from 'lucide-react';
+import { Activity, Database, Workflow, BookOpen, Play, Square, Users, ChevronDown, CheckSquare, Square as SquareIcon, Lock, Network, Layers, Cpu, Settings, LayoutTemplate, Zap, SlidersHorizontal } from 'lucide-react';
 import { MODELS, NETWORK_CAPACITY, GPU_SPECS, CLUSTER_TEMPLATES } from '../constants';
 import { LoadBalancingStrategy, NetworkSpeed, PlacementStrategy, GpuType, HardwareTemplate } from '../types';
 
@@ -29,6 +29,7 @@ interface Props {
     // Demo Mode
     demoMode: boolean;
     setDemoMode: (v: boolean) => void;
+    onOpenSettings?: () => void;
 }
 
 const Header: React.FC<Props> = ({ 
@@ -40,7 +41,8 @@ const Header: React.FC<Props> = ({
     isRunning, setIsRunning, 
     targetUserCount, setTargetUserCount,
     nodeCount = 10, gpusPerNode = 2, gpuType = 'A100', updateHardware, applyTemplate,
-    demoMode, setDemoMode
+    demoMode, setDemoMode,
+    onOpenSettings
 }) => {
     const [isModelDropdownOpen, setIsModelDropdownOpen] = useState(false);
     const [isHardwareDropdownOpen, setIsHardwareDropdownOpen] = useState(false);
@@ -249,7 +251,7 @@ const Header: React.FC<Props> = ({
 
                 {/* Placement Strategy Selector */}
                 {setPlacementStrategy && (
-                    <div className="hidden 2xl:flex items-center p-1 rounded-lg border bg-slate-800 border-slate-700 gap-2">
+                    <div id="header-placement" className="hidden 2xl:flex items-center p-1 rounded-lg border bg-slate-800 border-slate-700 gap-2">
                         <div className="px-2 flex items-center gap-1 text-slate-500">
                             <Layers size={12} />
                             <span className="text-[10px] font-bold uppercase">Place</span>
@@ -298,7 +300,7 @@ const Header: React.FC<Props> = ({
                 <div className="w-px h-4 bg-slate-700 hidden md:block"></div>
 
                 {/* DEMO / LIVE Switcher */}
-                <div className="flex items-center bg-slate-800 rounded-lg p-0.5 border border-slate-700 shrink-0 hidden lg:flex">
+                <div id="demo-live-switch" className="flex items-center bg-slate-800 rounded-lg p-0.5 border border-slate-700 shrink-0 hidden lg:flex">
                     <button
                         onClick={() => setDemoMode(true)}
                         className={`px-3 py-1.5 rounded-md text-[10px] font-bold transition-all ${demoMode ? 'bg-slate-700 text-slate-200 shadow-sm' : 'text-slate-500 hover:text-slate-400'}`}
@@ -312,6 +314,17 @@ const Header: React.FC<Props> = ({
                         LIVE {!demoMode && <Zap size={10} fill="currentColor" />}
                     </button>
                 </div>
+
+                {/* Settings Trigger */}
+                {onOpenSettings && (
+                    <button 
+                        onClick={onOpenSettings}
+                        className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors hidden lg:block"
+                        title="Settings"
+                    >
+                        <SlidersHorizontal size={16} />
+                    </button>
+                )}
                 
                 <button onClick={() => setTutorialStep(tutorialStep === null ? 0 : null)} className={`hidden md:flex items-center gap-2 px-4 py-1.5 rounded-md font-medium text-sm border transition-all ${tutorialStep !== null ? 'bg-emerald-600 border-emerald-500 text-white shadow-[0_0_15px_rgba(16,185,129,0.3)]' : 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700'}`}>
                     <BookOpen size={14} /> {tutorialStep !== null ? 'Exit' : 'Tutorial'}

@@ -5,56 +5,62 @@ import { TutorialStep } from "../types";
 export const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: 'step-0',
-    title: '1. Ray Cluster Simulation',
-    content: 'Welcome to the Ray & vLLM Cluster Simulator. This interactive tool helps you understand how Large Language Models (LLMs) run on distributed GPU infrastructure. You can configure hardware, network, and models to see real-time performance.',
+    title: '1. Welcome to the Cluster Sim',
+    content: 'This is an interactive simulation of a Ray & vLLM inference cluster. You will learn how hardware, network speed, and model size impact performance in distributed AI systems.',
     targetId: 'cluster-view'
   },
   {
     id: 'step-1',
-    title: '2. Hardware Templates',
-    content: 'Start here! Choose a preset cluster configuration. "Standard HPC" uses A100s (Training), "Visual Inference" uses L40S (Graphics/Inf), and "Hybrid" combines them. Different hardware affects VRAM capacity and Compute speed.',
-    targetId: 'header-templates'
+    title: '2. Live vs Demo Mode',
+    content: 'Toggle between "Demo" and "Live". Demo mode uses simulated AI responses. LIVE mode connects to the actual Gemini API to answer your questions using the "AI Tutor" button.',
+    targetId: 'demo-live-switch'
   },
   {
     id: 'step-2',
-    title: '3. Custom Hardware Config',
-    content: 'Want specific specs? Open this menu to adjust the total Node Count (2-24), GPUs per Node (1-8), and GPU Architecture (L4 to Blackwell B200). Watch the cluster rebuild instantly.',
-    targetId: 'header-hardware'
+    title: '3. Cluster Templates',
+    content: 'Quickly switch between common industry setups. "Standard HPC" uses A100s (Training workhorses), while "Visual Inference" uses L40S GPUs optimized for graphics and inference.',
+    targetId: 'header-templates'
   },
   {
     id: 'step-3',
-    title: '4. Model Selection',
-    content: 'Load different LLMs. Tiny models (1B) fit on single GPUs. Massive models (405B) require "Tensor Parallelism" (TP), forcing multiple GPUs to work together as one. If a model is too big for your hardware, it won\'t run!',
-    targetId: 'model-selector'
+    title: '4. Custom Hardware Config',
+    content: 'Want total control? Open this menu to scale your cluster from 2 to 24 nodes, change GPUs per node (1-8), and select specific architectures like the NVIDIA H100 or the new Blackwell B200.',
+    targetId: 'header-hardware'
   },
   {
     id: 'step-4',
-    title: '5. Network Bottlenecks',
-    content: 'Distributed AI is network-bound. Switch between 10G Ethernet, 100G Fabric, and 400G InfiniBand. Slow networks kill performance for large TP models due to the massive "All-Reduce" synchronization required between tokens.',
-    targetId: 'header-network'
+    title: '5. Model Selection',
+    content: 'Choose which LLMs to host. Small models (TinyLlama) fit everywhere. Huge models (Llama-405B) require "Tensor Parallelism", splitting one model across multiple GPUs (indicated by purple links).',
+    targetId: 'model-selector'
   },
   {
     id: 'step-5',
-    title: '6. Visualizing Parallelism',
-    content: 'Observe the traffic. Single dots are simple requests. Mesh-like connections between nodes represent Tensor Parallel communication. Glowing nodes are actively computing "Prefill" or "Decode" stages.',
-    targetId: 'cluster-view'
+    title: '6. Network Bandwidth',
+    content: 'Distributed inference is highly sensitive to network latency. Upgrade to 400G InfiniBand to reduce the "All-Reduce" synchronization time required for distributed models.',
+    targetId: 'header-network'
   },
   {
     id: 'step-6',
-    title: '7. Real-time Telemetry',
-    content: 'Track "Tokens Per Second" (Throughput) and "Time To First Token" (Latency). Watch how VRAM fills up as you load more models. If the Network Graph spikes, your interconnect is the bottleneck.',
-    targetId: 'metrics-dashboard'
+    title: '7. Placement Strategy',
+    content: 'Decide how Ray places workloads. "PACK" fills one rack first to minimize latency. "SPREAD" distributes across racks for High Availability (HA) in case a rack fails.',
+    targetId: 'header-placement'
   },
   {
     id: 'step-7',
-    title: '8. Cost & Billing',
-    content: 'Switch to the "Billing" tab in the dashboard or sidebar to see per-user usage. High-end GPUs cost more ($/hr), but might process requests faster, lowering the cost per token. It\'s a trade-off.',
-    targetId: 'sidebar-activity'
+    title: '8. Load Balancing',
+    content: 'For single-node models, choose how requests are routed. "Round Robin" is simple, while "Least Connections" sends traffic to the least busy node.',
+    targetId: 'header-lb'
   },
   {
     id: 'step-8',
-    title: '9. AI Tutor',
-    content: 'Have specific questions about Ray, vLLM, or GPU architecture? Ask the AI Tutor. It has full context of your current simulation state.',
+    title: '9. Real-time Telemetry',
+    content: 'Monitor key metrics: "Tokens/Sec" (Throughput) and "TTFT" (Latency). Watch VRAM usage—if it hits 100%, nodes will crash or swap, killing performance.',
+    targetId: 'metrics-dashboard'
+  },
+  {
+    id: 'step-9',
+    title: '10. Ask the AI Tutor',
+    content: 'Have questions? Click the chat button. In "LIVE" mode, it uses Google Gemini 2.5 to explain what is happening in your specific simulation configuration.',
     targetId: 'chat-widget-btn'
   }
 ];

@@ -1,15 +1,16 @@
 import React, { useState } from 'react';
 import { Zap, MessageCircle, HelpCircle } from 'lucide-react';
-import { askTutor } from '../services/geminiService';
+import { askTutor, LiveConfig } from '../services/geminiService';
 import { MODELS } from '../constants';
 import { SimulationState } from '../types';
 
 interface Props {
   simulationState: SimulationState;
   demoMode: boolean;
+  liveConfig?: LiveConfig;
 }
 
-const ChatWidget: React.FC<Props> = ({ simulationState, demoMode }) => {
+const ChatWidget: React.FC<Props> = ({ simulationState, demoMode, liveConfig }) => {
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
   const [history, setHistory] = useState<{role: 'user'|'ai', text: string}[]>([{ role: 'ai', text: 'Welcome! Ask me about the cluster.' }]);
@@ -23,7 +24,7 @@ const ChatWidget: React.FC<Props> = ({ simulationState, demoMode }) => {
     const activeModels = simulationState.activeModelIds.map(id => MODELS[id]?.name).join(', ');
     const context = `Active Models: ${activeModels}. Throughput: ${simulationState.metricsHistory.slice(-1)[0]?.totalThroughput || 0}.`;
     
-    const answer = await askTutor(msg, context, demoMode);
+    const answer = await askTutor(msg, context, demoMode, liveConfig);
     setHistory(p => [...p, { role: 'ai', text: answer }]); setLoading(false);
   };
 

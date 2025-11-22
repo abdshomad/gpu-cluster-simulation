@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Server, Activity } from 'lucide-react';
 import { MODELS } from './constants';
 import { NodeStatus } from './types';
@@ -9,7 +9,9 @@ import Header from './components/Header';
 import Sidebar from './components/Sidebar';
 import ChatWidget from './components/ChatWidget';
 import TutorialOverlay from './components/TutorialOverlay';
+import SettingsModal from './components/SettingsModal';
 import { useSimulation } from './hooks/useSimulation';
+import { LiveConfig } from './services/geminiService';
 
 const App: React.FC = () => {
   const { 
@@ -24,6 +26,24 @@ const App: React.FC = () => {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [tutorialStep, setTutorialStep] = useState<number | null>(null);
   const [demoMode, setDemoMode] = useState(true);
+  
+  // Settings State
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [liveConfig, setLiveConfig] = useState<LiveConfig>({});
+
+  useEffect(() => {
+      const stored = localStorage.getItem('cluster_sim_live_config');
+      if (stored) {
+          try {
+              setLiveConfig(JSON.parse(stored));
+          } catch (e) { console.error("Failed to parse settings", e); }
+      }
+  }, []);
+
+  const handleSaveSettings = (config: LiveConfig) => {
+      setLiveConfig(config);
+      localStorage.setItem('cluster_sim_live_config', JSON.stringify(config));
+  };
 
   const toggleModel = (id: string) => {
       setSimulationState(prev => {
@@ -78,8 +98,17 @@ const App: React.FC = () => {
         nodeCount={nodeCount} gpusPerNode={gpusPerNode} gpuType={gpuType} updateHardware={updateHardware}
         applyTemplate={applyTemplate}
         demoMode={demoMode} setDemoMode={setDemoMode}
+        onOpenSettings={() => setIsSettingsOpen(true)}
       />
       {tutorialStep !== null && <TutorialOverlay step={tutorialStep} setStep={(s) => setTutorialStep(s)} />}
+      
+      <SettingsModal 
+        isOpen={isSettingsOpen} 
+        onClose={() => setIsSettingsOpen(false)} 
+        config={liveConfig} 
+        onSave={handleSaveSettings} 
+      />
+
       {selectedNodeId && (
           <NodeDetailsModal 
             node={simulationState.nodes.find(n => n.id === selectedNodeId)!} 
@@ -110,7 +139,7 @@ const App: React.FC = () => {
         </div>
         <Sidebar state={simulationState} selectedNodeId={selectedNodeId} setSelectedNodeId={setSelectedNodeId} />
       </main>
-      <ChatWidget simulationState={simulationState} demoMode={demoMode} />
+      <ChatWidget simulationState={simulationState} demoMode={demoMode} liveConfig={liveConfig} />
     </div>
   );
 };

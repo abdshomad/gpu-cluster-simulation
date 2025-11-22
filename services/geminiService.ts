@@ -1,21 +1,58 @@
 import { GoogleGenAI } from "@google/genai";
 
+export interface LiveConfig {
+  endpointUrl?: string;
+  apiKey?: string;
+}
+
 // Helper to get AI client safely
-const getAiClient = () => {
-  if (process.env.API_KEY) {
-    return new GoogleGenAI({ apiKey: process.env.API_KEY });
+const getAiClient = (customKey?: string) => {
+  const key = customKey || process.env.API_KEY;
+  if (key) {
+    return new GoogleGenAI({ apiKey: key });
   }
   return null;
 };
 
-export const askTutor = async (question: string, contextStr: string, isDemoMode: boolean = false): Promise<string> => {
+export const askTutor = async (
+  question: string, 
+  contextStr: string, 
+  isDemoMode: boolean = false,
+  config?: LiveConfig
+): Promise<string> => {
   if (isDemoMode) {
     return mockAskTutor(question);
   }
 
-  if (!process.env.API_KEY) return "Gemini API Key is missing. Please configure the environment or switch to DEMO mode.";
+  // 1. Custom Endpoint URL Priority (e.g. Proxy)
+  if (config?.endpointUrl) {
+    try {
+      const response = await fetch(config.endpointUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          prompt: `
+            Context: ${contextStr}
+            Question: ${question}
+          ` 
+        })
+      });
+      
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      
+      const data = await response.json();
+      return data.text || data.answer || data.response || JSON.stringify(data);
+    } catch (error) {
+      console.error("Custom Endpoint Error:", error);
+      return `Error connecting to custom endpoint: ${config.endpointUrl}`;
+    }
+  }
+
+  // 2. Google GenAI SDK (Default or Custom Key)
+  const apiKey = config?.apiKey || process.env.API_KEY;
+  if (!apiKey) return "Gemini API Key is missing. Please configure it in Settings or switch to DEMO mode.";
   
-  const ai = getAiClient();
+  const ai = getAiClient(apiKey);
   if (!ai) return "Failed to initialize Gemini client.";
 
   try {
@@ -36,7 +73,7 @@ export const askTutor = async (question: string, contextStr: string, isDemoMode:
     return response.text || "I couldn't generate an answer right now.";
   } catch (error) {
     console.error("Gemini API Error:", error);
-    return "Error connecting to the AI Tutor. Check your network or API Key, or switch to DEMO mode.";
+    return "Error connecting to the AI Tutor. Check your API Key or network connection.";
   }
 };
 
