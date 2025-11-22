@@ -1,6 +1,3 @@
-
-
-
 import React, { useState } from 'react';
 import { Server, Activity } from 'lucide-react';
 import { MODELS } from './constants';
@@ -26,6 +23,7 @@ const App: React.FC = () => {
   } = useSimulation();
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [tutorialStep, setTutorialStep] = useState<number | null>(null);
+  const [demoMode, setDemoMode] = useState(true);
 
   const toggleModel = (id: string) => {
       setSimulationState(prev => {
@@ -79,6 +77,7 @@ const App: React.FC = () => {
         targetUserCount={targetUserCount} setTargetUserCount={setTargetUserCount}
         nodeCount={nodeCount} gpusPerNode={gpusPerNode} gpuType={gpuType} updateHardware={updateHardware}
         applyTemplate={applyTemplate}
+        demoMode={demoMode} setDemoMode={setDemoMode}
       />
       {tutorialStep !== null && <TutorialOverlay step={tutorialStep} setStep={(s) => setTutorialStep(s)} />}
       {selectedNodeId && (
@@ -111,7 +110,7 @@ const App: React.FC = () => {
         </div>
         <Sidebar state={simulationState} selectedNodeId={selectedNodeId} setSelectedNodeId={setSelectedNodeId} />
       </main>
-      <ChatWidget simulationState={simulationState} />
+      <ChatWidget simulationState={simulationState} demoMode={demoMode} />
     </div>
   );
 };

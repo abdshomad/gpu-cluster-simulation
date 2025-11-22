@@ -1,15 +1,15 @@
-
 import React, { useState } from 'react';
-import { Zap, MessageCircle } from 'lucide-react';
+import { Zap, MessageCircle, HelpCircle } from 'lucide-react';
 import { askTutor } from '../services/geminiService';
 import { MODELS } from '../constants';
 import { SimulationState } from '../types';
 
 interface Props {
   simulationState: SimulationState;
+  demoMode: boolean;
 }
 
-const ChatWidget: React.FC<Props> = ({ simulationState }) => {
+const ChatWidget: React.FC<Props> = ({ simulationState, demoMode }) => {
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
   const [history, setHistory] = useState<{role: 'user'|'ai', text: string}[]>([{ role: 'ai', text: 'Welcome! Ask me about the cluster.' }]);
@@ -23,7 +23,7 @@ const ChatWidget: React.FC<Props> = ({ simulationState }) => {
     const activeModels = simulationState.activeModelIds.map(id => MODELS[id]?.name).join(', ');
     const context = `Active Models: ${activeModels}. Throughput: ${simulationState.metricsHistory.slice(-1)[0]?.totalThroughput || 0}.`;
     
-    const answer = await askTutor(msg, context);
+    const answer = await askTutor(msg, context, demoMode);
     setHistory(p => [...p, { role: 'ai', text: answer }]); setLoading(false);
   };
 
@@ -32,7 +32,10 @@ const ChatWidget: React.FC<Props> = ({ simulationState }) => {
       {open && (
         <div className="pointer-events-auto w-80 md:w-96 bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl mb-4 flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-2">
           <div className="bg-gradient-to-r from-sky-900 to-slate-900 p-4 border-b border-slate-800 flex justify-between items-center">
-            <div className="flex items-center gap-2"><Zap size={16} className="text-yellow-400 fill-yellow-400" /><span className="font-bold text-white text-sm">AI Tutor</span></div>
+            <div className="flex items-center gap-2">
+                {demoMode ? <HelpCircle size={16} className="text-slate-300" /> : <Zap size={16} className="text-yellow-400 fill-yellow-400" />}
+                <span className="font-bold text-white text-sm">{demoMode ? 'AI Tutor (Demo)' : 'AI Tutor (Live)'}</span>
+            </div>
             <button onClick={() => setOpen(false)} className="text-slate-400 hover:text-white">&times;</button>
           </div>
           <div className="h-80 overflow-y-auto p-4 space-y-4 bg-slate-950/50">

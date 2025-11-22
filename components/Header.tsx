@@ -1,6 +1,5 @@
-
 import React, { useState, useRef, useEffect } from 'react';
-import { Activity, Database, Workflow, BookOpen, Play, Square, Users, ChevronDown, CheckSquare, Square as SquareIcon, Lock, Network, Layers, Cpu, Settings, LayoutTemplate } from 'lucide-react';
+import { Activity, Database, Workflow, BookOpen, Play, Square, Users, ChevronDown, CheckSquare, Square as SquareIcon, Lock, Network, Layers, Cpu, Settings, LayoutTemplate, Zap } from 'lucide-react';
 import { MODELS, NETWORK_CAPACITY, GPU_SPECS, CLUSTER_TEMPLATES } from '../constants';
 import { LoadBalancingStrategy, NetworkSpeed, PlacementStrategy, GpuType, HardwareTemplate } from '../types';
 
@@ -26,6 +25,10 @@ interface Props {
     gpuType?: GpuType;
     updateHardware?: (count: number, gpus: number, type: GpuType) => void;
     applyTemplate?: (t: HardwareTemplate) => void;
+
+    // Demo Mode
+    demoMode: boolean;
+    setDemoMode: (v: boolean) => void;
 }
 
 const Header: React.FC<Props> = ({ 
@@ -36,7 +39,8 @@ const Header: React.FC<Props> = ({
     tutorialStep, setTutorialStep, 
     isRunning, setIsRunning, 
     targetUserCount, setTargetUserCount,
-    nodeCount = 10, gpusPerNode = 2, gpuType = 'A100', updateHardware, applyTemplate
+    nodeCount = 10, gpusPerNode = 2, gpuType = 'A100', updateHardware, applyTemplate,
+    demoMode, setDemoMode
 }) => {
     const [isModelDropdownOpen, setIsModelDropdownOpen] = useState(false);
     const [isHardwareDropdownOpen, setIsHardwareDropdownOpen] = useState(false);
@@ -292,6 +296,22 @@ const Header: React.FC<Props> = ({
                 </div>
 
                 <div className="w-px h-4 bg-slate-700 hidden md:block"></div>
+
+                {/* DEMO / LIVE Switcher */}
+                <div className="flex items-center bg-slate-800 rounded-lg p-0.5 border border-slate-700 shrink-0 hidden lg:flex">
+                    <button
+                        onClick={() => setDemoMode(true)}
+                        className={`px-3 py-1.5 rounded-md text-[10px] font-bold transition-all ${demoMode ? 'bg-slate-700 text-slate-200 shadow-sm' : 'text-slate-500 hover:text-slate-400'}`}
+                    >
+                        DEMO
+                    </button>
+                    <button
+                        onClick={() => setDemoMode(false)}
+                        className={`px-3 py-1.5 rounded-md text-[10px] font-bold transition-all flex items-center gap-1.5 ${!demoMode ? 'bg-sky-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-400'}`}
+                    >
+                        LIVE {!demoMode && <Zap size={10} fill="currentColor" />}
+                    </button>
+                </div>
                 
                 <button onClick={() => setTutorialStep(tutorialStep === null ? 0 : null)} className={`hidden md:flex items-center gap-2 px-4 py-1.5 rounded-md font-medium text-sm border transition-all ${tutorialStep !== null ? 'bg-emerald-600 border-emerald-500 text-white shadow-[0_0_15px_rgba(16,185,129,0.3)]' : 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700'}`}>
                     <BookOpen size={14} /> {tutorialStep !== null ? 'Exit' : 'Tutorial'}
